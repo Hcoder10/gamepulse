@@ -17,7 +17,8 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
 CSRF_TRUSTED_ORIGINS = [
     o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()
 ] + [
-    "https://web-production-aac10.up.railway.app",
+    "https://web-production-fe47d.up.railway.app",
+    "https://*.up.railway.app",
 ]
 
 INSTALLED_APPS = [
