@@ -1,0 +1,157 @@
+{% extends "copilot/base.html" %}
+
+{% block title %}Plugin — Luau Copilot{% endblock %}
+{% block nav_plugin %}bg-sage-50 text-sage-700 font-semibold{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-6 py-14">
+
+    <!-- Header -->
+    <div class="text-center mb-14">
+        <div class="w-16 h-16 bg-sage-50 border border-sage-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8 text-sage-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v2.25A2.25 2.25 0 006 10.5zm0 9.75h2.25A2.25 2.25 0 0010.5 18v-2.25a2.25 2.25 0 00-2.25-2.25H6a2.25 2.25 0 00-2.25 2.25V18A2.25 2.25 0 006 20.25zm9.75-9.75H18a2.25 2.25 0 002.25-2.25V6A2.25 2.25 0 0018 3.75h-2.25A2.25 2.25 0 0013.5 6v2.25a2.25 2.25 0 002.25 2.25z"/>
+            </svg>
+        </div>
+        <h1 class="text-3xl font-bold text-stone-800 mb-3">Roblox Studio Plugin</h1>
+        <p class="text-stone-500 max-w-xl mx-auto leading-relaxed">Connect Roblox Studio to Luau Copilot. Generate code from the agent and it auto-inserts into your game.</p>
+        <div class="mt-6">
+            <a href="/plugin/download/" class="inline-flex items-center gap-2 px-7 py-3 bg-sage-600 text-white font-semibold rounded-xl hover:bg-sage-700 transition-colors shadow-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Download LuauCopilot.lua
+            </a>
+        </div>
+    </div>
+
+    <!-- Steps -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
+        <div class="bg-white rounded-xl border border-stone-200 p-6 text-center shadow-sm">
+            <div class="w-10 h-10 bg-sage-50 border border-sage-200 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <span class="text-lg font-bold text-sage-600">1</span>
+            </div>
+            <h3 class="text-sm font-semibold text-stone-800 mb-1.5">Install</h3>
+            <p class="text-xs text-stone-500 leading-relaxed">Download the file and save it to your Roblox Studio Plugins folder.</p>
+        </div>
+        <div class="bg-white rounded-xl border border-stone-200 p-6 text-center shadow-sm">
+            <div class="w-10 h-10 bg-sage-50 border border-sage-200 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <span class="text-lg font-bold text-sage-600">2</span>
+            </div>
+            <h3 class="text-sm font-semibold text-stone-800 mb-1.5">Connect</h3>
+            <p class="text-xs text-stone-500 leading-relaxed">Copy the Session ID from the Agent page and paste it into the plugin.</p>
+        </div>
+        <div class="bg-white rounded-xl border border-stone-200 p-6 text-center shadow-sm">
+            <div class="w-10 h-10 bg-sage-50 border border-sage-200 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <span class="text-lg font-bold text-sage-600">3</span>
+            </div>
+            <h3 class="text-sm font-semibold text-stone-800 mb-1.5">Auto-Insert</h3>
+            <p class="text-xs text-stone-500 leading-relaxed">Generate code from the Agent — scripts appear in your game automatically.</p>
+        </div>
+    </div>
+
+    <!-- Setup -->
+    <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-7 mb-8">
+        <h2 class="text-lg font-semibold text-stone-800 mb-5">Setup Instructions</h2>
+        <div class="space-y-4 text-sm text-stone-600">
+            <div class="flex items-start gap-3">
+                <span class="text-sage-600 font-mono font-bold mt-0.5 w-5 flex-shrink-0">1.</span>
+                <div>
+                    <strong class="text-stone-800">Enable HttpService</strong> — In Roblox Studio, go to
+                    <span class="font-mono text-sage-700 text-xs bg-sage-50 px-1.5 py-0.5 rounded">Game Settings &gt; Security</span>
+                    and enable <span class="font-mono text-sage-700 text-xs bg-sage-50 px-1.5 py-0.5 rounded">Allow HTTP Requests</span>.
+                </div>
+            </div>
+            <div class="flex items-start gap-3">
+                <span class="text-sage-600 font-mono font-bold mt-0.5 w-5 flex-shrink-0">2.</span>
+                <div>
+                    <strong class="text-stone-800">Install the plugin</strong> — Save the downloaded
+                    <code class="px-1.5 py-0.5 rounded bg-sage-50 text-sage-700 text-xs font-mono">LuauCopilot.lua</code>
+                    to your Plugins folder:
+                    <code class="block mt-1 px-3 py-2 rounded-lg bg-cream-200 text-stone-600 text-xs font-mono">%localappdata%\Roblox\Plugins\LuauCopilot.lua</code>
+                </div>
+            </div>
+            <div class="flex items-start gap-3">
+                <span class="text-sage-600 font-mono font-bold mt-0.5 w-5 flex-shrink-0">3.</span>
+                <div>
+                    <strong class="text-stone-800">Set the server URL</strong> — The plugin defaults to
+                    <code class="px-1.5 py-0.5 rounded bg-sage-50 text-sage-700 text-xs font-mono">{{ server_url }}</code>.
+                    Change it if running locally.
+                </div>
+            </div>
+            <div class="flex items-start gap-3">
+                <span class="text-sage-600 font-mono font-bold mt-0.5 w-5 flex-shrink-0">4.</span>
+                <div>
+                    <strong class="text-stone-800">Connect</strong> — Open the
+                    <a href="/copilot/" class="text-sage-600 hover:text-sage-700 font-medium underline underline-offset-2">Agent page</a>,
+                    copy the Session ID from the sidebar, paste it into the plugin, and click Connect.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plugin Code -->
+    <div class="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden mb-8">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-stone-100 bg-stone-50">
+            <span class="text-xs text-stone-500 font-mono">LuauCopilot.lua</span>
+            <button onclick="copyPlugin()" id="copy-plugin-btn" class="text-xs text-sage-600 hover:text-sage-700 font-medium transition-colors flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                Copy
+            </button>
+        </div>
+        <div class="p-5 font-mono text-sm overflow-auto bg-white" style="max-height: 60vh;">
+            <pre><code id="plugin-code" class="language-lua">{{ plugin_code }}</code></pre>
+        </div>
+    </div>
+
+    <!-- Architecture -->
+    <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-7">
+        <h2 class="text-lg font-semibold text-stone-800 mb-4">Architecture</h2>
+        <div class="font-mono text-xs text-stone-500 leading-loose overflow-x-auto">
+            <pre>
+ Agent (Web App)                 Server                       Roblox Studio Plugin
+ ===============            ================              =======================
+
+ User: "Build a                                           Plugin polls every 2s:
+  coin system"                                            GET /copilot/api/studio/poll/
+       |                                                         |
+       v                                                         |
+ POST /copilot/api/agentic/ -------> Generate code                       |
+                             Score (4 scorers)                    |
+                             Self-correct if &lt;85%                 |
+                             Queue command -------> Command ready!
+                                                         |
+                             &lt;--- GET /copilot/api/studio/poll/  |
+                             Return: insert_script        |
+                                                         v
+                                                Create Script in
+                                               ServerScriptService
+                                                         |
+                             POST /copilot/api/studio/report/ &lt;---|
+                             (success/failure)</pre>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const el = document.getElementById('plugin-code');
+        if (el) hljs.highlightElement(el);
+    });
+
+    function copyPlugin() {
+        const el = document.getElementById('plugin-code');
+        if (!el) return;
+        navigator.clipboard.writeText(el.textContent).then(() => {
+            const btn = document.getElementById('copy-plugin-btn');
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Copied!';
+            setTimeout(() => { btn.innerHTML = orig; }, 2000);
+        });
+    }
+</script>
+{% endblock %}

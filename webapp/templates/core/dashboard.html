@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — GamePulse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pulse: { 50:'#effdf5',100:'#d9fbe8',200:'#b5f5d3',300:'#7ceab2',400:'#3dd88a',500:'#1abf6b',600:'#0f9d56',700:'#107d47',800:'#12633b' },
+                        surface: { 900:'#0b0f14',800:'#111827',700:'#1f2937',600:'#374151',500:'#4b5563' },
+                    },
+                    fontFamily: { sans:['Inter','system-ui','sans-serif'], mono:['JetBrains Mono','monospace'] },
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body{font-feature-settings:'cv02','cv03','cv04','cv11'}
+        ::selection{background:#1abf6b40}
+        .sidebar{scrollbar-width:thin;scrollbar-color:#374151 transparent}
+        @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes countUp{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+        .anim-slide{animation:slideUp .4s cubic-bezier(.22,1,.36,1) both}
+        .anim-slide-d1{animation-delay:.05s}.anim-slide-d2{animation-delay:.1s}.anim-slide-d3{animation-delay:.15s}.anim-slide-d4{animation-delay:.2s}
+        .anim-count{animation:countUp .5s cubic-bezier(.22,1,.36,1) both}
+        .insight-card{transition:transform .2s,box-shadow .2s}
+        .insight-card:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,.06)}
+        .health-ring{transition:stroke-dashoffset 1s cubic-bezier(.22,1,.36,1)}
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        .loading-shimmer{background:linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+        .dark .loading-shimmer{background:linear-gradient(90deg,#1f2937 25%,#374151 50%,#1f2937 75%);background-size:200% 100%}
+        .typing-dots span{animation:blink 1.4s infinite both}.typing-dots span:nth-child(2){animation-delay:.2s}.typing-dots span:nth-child(3){animation-delay:.4s}
+        @keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+        @keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(26,191,107,.3)}50%{box-shadow:0 0 20px 4px rgba(26,191,107,.15)}}
+        .ai-glow{animation:pulseGlow 3s ease-in-out infinite}
+        @keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}
+        @keyframes slideOutRight{from{transform:translateX(0)}to{transform:translateX(100%)}}
+        .chat-open{animation:slideInRight .3s ease both}
+        .chat-close{animation:slideOutRight .3s ease both}
+        @keyframes toastIn{from{opacity:0;transform:translateY(16px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+        @keyframes toastOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(16px) scale(.95)}}
+        .toast-in{animation:toastIn .3s ease both}
+        .toast-out{animation:toastOut .3s ease both}
+        .dark .bg-white{background:#1f2937}.dark .bg-gray-50{background:#111827}
+        .dark .text-gray-900{color:#f3f4f6}.dark .text-gray-700{color:#d1d5db}.dark .text-gray-600{color:#9ca3af}.dark .text-gray-500{color:#6b7280}.dark .text-gray-400{color:#9ca3af}
+        .dark .border-gray-200{border-color:#374151}.dark .border-gray-100{border-color:#1f2937}
+        .dark .bg-gray-100{background:#374151}
+    </style>
+</head>
+<body class="font-sans text-gray-900 antialiased bg-gray-50 dark:bg-surface-900 dark:text-gray-100 flex h-screen overflow-hidden">
+
+<!-- Toast container -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[100] space-y-2"></div>
+
+<!-- AI Chat Slide-out -->
+<div id="chat-panel" class="fixed top-0 right-0 h-full w-[400px] bg-white dark:bg-surface-800 border-l border-gray-200 dark:border-surface-600 z-50 hidden shadow-2xl flex flex-col">
+    <div class="p-4 border-b border-gray-200 dark:border-surface-600 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <div class="w-7 h-7 bg-pulse-500 rounded-lg flex items-center justify-center ai-glow">
+                <svg class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <div>
+                <span class="font-bold text-sm">GamePulse AI</span>
+                <span class="text-[10px] text-gray-400 block">Ask anything about your games</span>
+            </div>
+        </div>
+        <button onclick="toggleChat()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <div id="chat-messages" class="flex-1 overflow-auto p-4 space-y-3">
+        <div class="bg-pulse-50 dark:bg-pulse-500/10 rounded-xl p-3 text-sm text-pulse-800 dark:text-pulse-300">
+            Hi! I'm GamePulse AI. Ask me anything about your Roblox games — growth strategy, monetization, game design, marketing, or anything else.
+        </div>
+    </div>
+    <div class="p-4 border-t border-gray-200 dark:border-surface-600">
+        <div class="flex gap-2">
+            <input id="chat-input" type="text" placeholder="Ask about your games..." onkeydown="if(event.key==='Enter')sendChat()"
+                   class="flex-1 bg-gray-50 dark:bg-surface-700 border border-gray-200 dark:border-surface-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pulse-500/30">
+            <button onclick="sendChat()" class="px-4 py-2.5 bg-pulse-500 text-white rounded-xl text-sm font-semibold hover:bg-pulse-600 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+            </button>
+        </div>
+        <div class="flex gap-1.5 mt-2 flex-wrap">
+            <button onclick="quickChat('How can I grow my player base?')" class="text-[10px] px-2 py-1 bg-gray-100 dark:bg-surface-700 rounded-lg text-gray-500 hover:bg-gray-200 dark:hover:bg-surface-600 transition-colors">Growth tips</button>
+            <button onclick="quickChat('What monetization am I missing?')" class="text-[10px] px-2 py-1 bg-gray-100 dark:bg-surface-700 rounded-lg text-gray-500 hover:bg-gray-200 dark:hover:bg-surface-600 transition-colors">Monetization</button>
+            <button onclick="quickChat('Compare my games and tell me which to focus on')" class="text-[10px] px-2 py-1 bg-gray-100 dark:bg-surface-700 rounded-lg text-gray-500 hover:bg-gray-200 dark:hover:bg-surface-600 transition-colors">Focus advice</button>
+            <button onclick="quickChat('What update should I ship this week?')" class="text-[10px] px-2 py-1 bg-gray-100 dark:bg-surface-700 rounded-lg text-gray-500 hover:bg-gray-200 dark:hover:bg-surface-600 transition-colors">Update ideas</button>
+        </div>
+    </div>
+</div>
+
+<!-- Sidebar -->
+<aside class="sidebar w-64 bg-surface-800 flex flex-col flex-shrink-0">
+    <div class="p-5 flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-pulse-500 flex items-center justify-center shadow-sm">
+            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <span class="font-bold text-white text-[15px] tracking-tight">GamePulse</span>
+        <button onclick="toggleDark()" class="ml-auto text-gray-500 hover:text-gray-300 transition-colors" title="Toggle dark mode">
+            <svg id="dark-icon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        </button>
+    </div>
+
+    <nav class="px-3 space-y-0.5 text-[13px] flex-1">
+        <button onclick="showSection('overview')" id="nav-overview" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white font-medium bg-white/10">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Overview
+        </button>
+        <button onclick="showSection('insights')" id="nav-insights" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            AI Deep Dive
+        </button>
+        <button onclick="showSection('gameloop')" id="nav-gameloop" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Game Loop
+        </button>
+        <button onclick="showSection('competitors')" id="nav-competitors" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            Competitors
+        </button>
+        <button onclick="showSection('trends')" id="nav-trends" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            Trends
+        </button>
+        <button onclick="showSection('revenue')" id="nav-revenue" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Revenue
+        </button>
+        <button onclick="showSection('social')" id="nav-social" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+            Social & Marketing
+        </button>
+        <button onclick="showSection('roadmap')" id="nav-roadmap" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            Update Roadmap
+        </button>
+    </nav>
+
+    <!-- Add game -->
+    <div class="p-4 border-t border-white/10">
+        <div class="flex gap-2">
+            <input id="game-id-input" type="text" placeholder="Game ID or URL" class="flex-1 bg-surface-700 border border-surface-600 rounded-lg px-3 py-2 text-[12px] font-mono text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-pulse-500/50">
+            <button onclick="addGame()" class="px-3 py-2 bg-pulse-600 text-white rounded-lg text-[11px] font-bold hover:bg-pulse-500 transition-colors">+</button>
+        </div>
+    </div>
+
+    <div class="p-4 border-t border-white/10 flex items-center gap-3">
+        <a href="/" class="text-[12px] text-gray-500 hover:text-white transition-colors">Home</a>
+        <span class="text-gray-700">|</span>
+        <a href="/setup/" class="text-[12px] text-gray-500 hover:text-white transition-colors">Setup</a>
+        <span class="text-gray-700">|</span>
+        <a href="/logout/" class="text-[12px] text-gray-500 hover:text-red-400 transition-colors">Logout</a>
+    </div>
+</aside>
+
+<!-- Main Content -->
+<main class="flex-1 overflow-auto relative">
+    <!-- Floating AI Chat button -->
+    <button onclick="toggleChat()" id="chat-fab" class="fixed bottom-6 right-6 z-40 w-14 h-14 bg-pulse-500 text-white rounded-2xl shadow-lg shadow-pulse-500/30 flex items-center justify-center hover:bg-pulse-600 transition-all hover:scale-105 ai-glow">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+    </button>
+
+    <div class="p-8 max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8 anim-slide">
+            <div>
+                <h1 class="text-xl font-bold" id="page-title">Portfolio Overview</h1>
+                <p class="text-sm text-gray-500" id="page-subtitle">Welcome back, {{ username }}</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-[12px] text-gray-400 font-medium" id="current-date"></span>
+                <div class="w-8 h-8 rounded-full bg-pulse-100 dark:bg-pulse-500/20 flex items-center justify-center text-[12px] font-bold text-pulse-700 dark:text-pulse-400">
+                    {{ username|truncatechars:1 }}
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== OVERVIEW ====== -->
+        <div id="section-overview">
+            <div id="overview-loading" class="text-center py-20">
+                <div class="inline-flex flex-col items-center gap-4">
+                    <div class="w-12 h-12 border-3 border-pulse-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-sm text-gray-500">Loading your portfolio<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></span>
+                </div>
+            </div>
+            <div id="portfolio-content" class="hidden">
+                <!-- AI Briefing -->
+                <div id="briefing-card" class="bg-gradient-to-br from-surface-800 via-surface-700 to-surface-800 rounded-2xl p-6 mb-6 text-white relative overflow-hidden anim-slide">
+                    <div class="absolute top-0 right-0 w-40 h-40 bg-pulse-500/10 rounded-full blur-3xl"></div>
+                    <div class="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl"></div>
+                    <div class="relative">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-6 h-6 bg-pulse-500 rounded-lg flex items-center justify-center ai-glow">
+                                <svg class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            </div>
+                            <span class="text-[11px] font-bold text-pulse-400 uppercase tracking-wider">Daily AI Briefing</span>
+                            <span class="text-[10px] text-gray-500 ml-auto">Powered by Mistral</span>
+                        </div>
+                        <div id="briefing-loading"><div class="flex items-center gap-3"><div class="w-4 h-4 border-2 border-pulse-400 border-t-transparent rounded-full animate-spin"></div><span class="text-[13px] text-gray-400">Generating your daily briefing<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></span></div></div>
+                        <div id="briefing-content" class="hidden">
+                            <h3 class="font-bold text-[16px] mb-2" id="briefing-greeting"></h3>
+                            <p class="text-[13px] text-gray-300 mb-4 leading-relaxed" id="briefing-tip"></p>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div class="bg-white/5 rounded-xl p-3 border border-white/10"><span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Top Performer</span><span class="text-[13px] font-bold text-pulse-400" id="briefing-top"></span></div>
+                                <div class="bg-white/5 rounded-xl p-3 border border-white/10"><span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Needs Attention</span><span class="text-[13px] font-bold text-amber-400" id="briefing-attention"></span></div>
+                                <div class="bg-white/5 rounded-xl p-3 border border-white/10"><span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Market Trend</span><span class="text-[13px] font-bold text-blue-400" id="briefing-trend"></span></div>
+                            </div>
+                            <div id="briefing-qw" class="mt-4 hidden"><span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block mb-2">Quick Wins</span><div id="qw-list" class="flex flex-wrap gap-2"></div></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Stats -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="stats-row"></div>
+                <!-- Games -->
+                <div class="mb-4 flex items-center justify-between"><h2 class="text-sm font-bold">Your Games</h2><span class="text-[11px] text-gray-400" id="game-count"></span></div>
+                <div id="game-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </div>
+        </div>
+
+        <!-- ====== AI DEEP DIVE ====== -->
+        <div id="section-insights" class="hidden">
+            <div id="insights-picker" class="mb-6"><p class="text-sm text-gray-500 mb-3">Select a game:</p><div id="insights-game-picker" class="flex flex-wrap gap-2"></div></div>
+            <div id="insights-loading" class="hidden text-center py-16"><div class="inline-flex items-center gap-3 px-5 py-3 bg-white dark:bg-surface-700 rounded-xl border border-gray-200 dark:border-surface-600 shadow-sm"><div class="w-5 h-5 border-2 border-pulse-500 border-t-transparent rounded-full animate-spin"></div><span class="text-sm">Analyzing with Mistral AI<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></span></div></div>
+            <div id="insights-content" class="hidden space-y-6">
+                <div class="bg-white dark:bg-surface-700 rounded-2xl border border-gray-200 dark:border-surface-600 p-6 shadow-sm">
+                    <div class="flex items-start gap-6">
+                        <div class="flex-shrink-0"><svg width="120" height="120" class="transform -rotate-90"><circle cx="60" cy="60" r="52" stroke="#e5e7eb" stroke-width="8" fill="none"/><circle id="health-ring" cx="60" cy="60" r="52" stroke="#1abf6b" stroke-width="8" fill="none" stroke-dasharray="326.73" stroke-dashoffset="326.73" stroke-linecap="round" class="health-ring"/></svg><div class="text-center -mt-[82px] mb-[32px]"><span id="health-score-num" class="text-2xl font-black"></span><br><span id="health-label" class="text-[10px] font-bold text-pulse-600 uppercase"></span></div></div>
+                        <div class="flex-1"><h3 id="insight-game-name" class="text-lg font-bold mb-1"></h3><p id="insight-summary" class="text-sm text-gray-500 mb-3"></p><div id="insight-meta" class="flex gap-3 flex-wrap"></div></div>
+                    </div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div><h4 class="text-sm font-bold mb-3">Insights</h4><div id="insights-list" class="space-y-3"></div></div>
+                    <div><h4 class="text-sm font-bold mb-3">Growth Actions</h4><div id="growth-actions" class="space-y-3"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== GAME LOOP ====== -->
+        <div id="section-gameloop" class="hidden">
+            <div class="mb-6"><p class="text-sm text-gray-500 mb-3">Select a game:</p><div id="gl-picker" class="flex flex-wrap gap-2"></div></div>
+            <div id="gl-loading" class="hidden text-center py-16"><div class="inline-flex items-center gap-3 px-5 py-3 bg-white dark:bg-surface-700 rounded-xl border border-gray-200 dark:border-surface-600 shadow-sm"><div class="w-5 h-5 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div><span class="text-sm">Analyzing game design<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></span></div></div>
+            <div id="gl-content" class="hidden space-y-6">
+                <div class="bg-white dark:bg-surface-700 rounded-2xl border border-gray-200 dark:border-surface-600 p-6 shadow-sm">
+                    <p id="gl-tldr" class="text-sm text-gray-600 mb-4 italic"></p>
+                    <div class="grid grid-cols-2 gap-4"><div class="bg-gray-50 dark:bg-surface-800 rounded-xl p-4 text-center"><span class="text-3xl font-black anim-count" id="gl-loop-rating"></span><span class="text-[11px] text-gray-500 block mt-1">Loop Rating</span></div><div class="bg-gray-50 dark:bg-surface-800 rounded-xl p-4 text-center"><span class="text-3xl font-black anim-count" id="gl-engage-score"></span><span class="text-[11px] text-gray-500 block mt-1">Engagement</span></div></div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white dark:bg-surface-700 rounded-2xl border border-gray-200 dark:border-surface-600 p-5"><h4 class="text-sm font-bold mb-2">Core Loop</h4><p id="gl-core-loop" class="text-sm text-gray-600"></p></div>
+                    <div class="bg-white dark:bg-surface-700 rounded-2xl border border-gray-200 dark:border-surface-600 p-5"><h4 class="text-sm font-bold mb-2">Session Flow</h4><p id="gl-session" class="text-sm text-gray-600"></p></div>
+                </div>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div><h4 class="text-sm font-bold mb-3">Retention Hooks</h4><div id="gl-retention" class="space-y-2"></div></div>
+                    <div><h4 class="text-sm font-bold mb-3">Bottlenecks</h4><div id="gl-bottlenecks" class="space-y-2"></div></div>
+                    <div><h4 class="text-sm font-bold mb-3">Monetization</h4><div id="gl-monetization" class="space-y-2"></div></div>
+                </div>
+                <div class="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-5"><h4 class="text-sm font-bold text-amber-800 dark:text-amber-400 mb-2">Missing Features</h4><div id="gl-missing" class="flex flex-wrap gap-2"></div></div>
+            </div>
+        </div>
+
+        <!-- ====== COMPETITORS ====== -->
+        <div id="section-competitors" class="hidden">
+            <div class="mb-6"><p class="text-sm text-gray-500 mb-3">Select a game:</p><div id="comp-picker" class="flex flex-wrap gap-2"></div></div>
+            <div id="comp-loading" class="hidden text-center py-16"><div class="inline-flex items-center gap-3 px-5 py-3 bg-white dark:bg-surface-700 rounded-xl border border-gray-200 dark:border-surface-600 shadow-sm"><div class="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div><span class="text-sm">Scanning competitors<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></span></div></div>
+            <div id="comp-content" class="hidden space-y-4">
+                <div id="comp-position" class="bg-white dark:bg-surface-700 rounded-xl border border-gray-200 dark:border-surface-600 p-5 shadow-sm"></div>
+                <div id="comp-steal" class="bg-pulse-50 dark:bg-pulse-500/10 border border-pulse-200 dark:border-pulse-500/30 rounded-xl p-5 hidden"><h4 class="text-sm font-bold text-pulse-800 dark:text-pulse-400 mb-1">Steal This</h4><p id="comp-steal-text" class="text-sm text-pulse-700 dark:text-pulse-300"></p></div>
+                <div class="grid md:grid-cols-2 gap-4"><div><h4 class="text-sm font-bold mb-3">Threats</h4><div id="comp-threats" class="space-y-2"></div></div><div><h4 class="text-sm font-bold mb-3">Opportunities</h4><div id="comp-opps" class="space-y-2"></div></div></div>
+            </div>
+        </div>
+
+        <!-- ====== TRENDS ====== -->
+        <div id="section-trends" class="hidden">
+            <div id="trends-loading" class="text-center py-16"><div class="inline-flex items-center gap-3 px-5 py-3 bg-white dark:bg-surface-700 rounded-xl border border-gray-200 dark:border-surface-600 shadow-sm"><div class="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div><span class="text-sm">Analyzing market<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></span></div></div>
+            <div id="trends-content" class="hidden space-y-6">
+                <div class="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-6"><h3 class="font-bold mb-2">Market Summary</h3><p id="trends-summary" class="text-sm text-gray-700 dark:text-gray-300"></p></div>
+                <div class="bg-white dark:bg-surface-700 rounded-2xl border border-gray-200 dark:border-surface-600 p-6"><h4 class="text-sm font-bold mb-2">Genre Outlook</h4><p id="trends-genre" class="text-sm text-gray-600"></p></div>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div><h4 class="text-sm font-bold mb-3">Hot Trends</h4><div id="trends-hot" class="space-y-3"></div></div>
+                    <div><h4 class="text-sm font-bold mb-3">Strategic Moves</h4><div id="trends-moves" class="space-y-3"></div></div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div><h4 class="text-sm font-bold mb-3">Rising Mechanics</h4><div id="trends-mechanics" class="space-y-2"></div></div>
+                    <div><h4 class="text-sm font-bold mb-3">Content Waves</h4><div id="trends-waves" class="space-y-2"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== REVENUE ====== -->
+        <div id="section-revenue" class="hidden">
+            <div class="mb-6"><p class="text-sm text-gray-500 mb-3">Select a game:</p><div id="rev-picker" class="flex flex-wrap gap-2"></div></div>
+            <div id="rev-loading" class="hidden text-center py-16"><div class="inline-flex items-center gap-3 px-5 py-3 bg-white dark:bg-surface-700 rounded-xl border border-gray-200 dark:border-surface-600 shadow-sm"><div class="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div><span class="text-sm">Estimating revenue<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></span></div></div>
+            <div id="rev-content" class="hidden space-y-6">
+                <div class="bg-gradient-to-br from-emerald-50 to-pulse-50 dark:from-emerald-500/10 dark:to-pulse-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl p-6">
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                        <div><span class="text-[10px] font-semibold text-gray-500 uppercase block mb-1">Monthly Robux</span><span class="text-xl font-black text-gray-900 dark:text-white" id="rev-robux"></span></div>
+                        <div><span class="text-[10px] font-semibold text-gray-500 uppercase block mb-1">Monthly USD</span><span class="text-xl font-black text-emerald-600" id="rev-usd"></span></div>
+                        <div><span class="text-[10px] font-semibold text-gray-500 uppercase block mb-1">Grade</span><span class="text-xl font-black" id="rev-grade"></span></div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-surface-700 rounded-2xl border border-gray-200 dark:border-surface-600 p-5"><h4 class="text-sm font-bold mb-2">Current Monetization</h4><p id="rev-current" class="text-sm text-gray-600"></p></div>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div><h4 class="text-sm font-bold mb-3">Revenue Streams</h4><div id="rev-streams" class="space-y-2"></div></div>
+                    <div><h4 class="text-sm font-bold mb-3">Optimization Tips</h4><div id="rev-tips" class="space-y-2"></div></div>
+                </div>
+                <div class="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl p-4"><p id="rev-benchmark" class="text-sm text-blue-800 dark:text-blue-300"></p></div>
+            </div>
+        </div>
+
+        <!-- ====== SOCIAL & MARKETING ====== -->
+        <div id="section-social" class="hidden">
+            <div class="mb-6"><p class="text-sm text-gray-500 mb-3">Select a game:</p><div id="social-picker" class="flex flex-wrap gap-2"></div></div>
+            <div id="social-loading" class="hidden text-center py-16"><div class="inline-flex items-center gap-3 px-5 py-3 bg-white dark:bg-surface-700 rounded-xl border border-gray-200 dark:border-surface-600 shadow-sm"><div class="w-5 h-5 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div><span class="text-sm">Generating marketing content<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></span></div></div>
+            <div id="social-content" class="hidden space-y-4">
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white dark:bg-surface-700 rounded-2xl border border-gray-200 dark:border-surface-600 p-5 shadow-sm">
+                        <div class="flex items-center gap-2 mb-3"><span class="text-[11px] font-bold text-blue-500 uppercase">Twitter / X</span><button onclick="copyText('social-twitter')" class="ml-auto text-[10px] text-gray-400 hover:text-pulse-500 transition-colors">Copy</button></div>
+                        <p id="social-twitter" class="text-sm text-gray-700 dark:text-gray-300 font-medium"></p>
+                    </div>
+                    <div class="bg-white dark:bg-surface-700 rounded-2xl border border-gray-200 dark:border-surface-600 p-5 shadow-sm">
+                        <div class="flex items-center gap-2 mb-3"><span class="text-[11px] font-bold text-pink-500 uppercase">TikTok Hook</span><button onclick="copyText('social-tiktok')" class="ml-auto text-[10px] text-gray-400 hover:text-pulse-500 transition-colors">Copy</button></div>
+                        <p id="social-tiktok" class="text-sm text-gray-700 dark:text-gray-300 font-medium"></p>
+                    </div>
+                    <div class="bg-white dark:bg-surface-700 rounded-2xl border border-gray-200 dark:border-surface-600 p-5 shadow-sm">
+                        <div class="flex items-center gap-2 mb-3"><span class="text-[11px] font-bold text-indigo-500 uppercase">Discord</span><button onclick="copyText('social-discord')" class="ml-auto text-[10px] text-gray-400 hover:text-pulse-500 transition-colors">Copy</button></div>
+                        <p id="social-discord" class="text-sm text-gray-700 dark:text-gray-300 font-medium whitespace-pre-line"></p>
+                    </div>
+                    <div class="bg-white dark:bg-surface-700 rounded-2xl border border-gray-200 dark:border-surface-600 p-5 shadow-sm">
+                        <div class="flex items-center gap-2 mb-3"><span class="text-[11px] font-bold text-red-500 uppercase">YouTube Title</span><button onclick="copyText('social-youtube')" class="ml-auto text-[10px] text-gray-400 hover:text-pulse-500 transition-colors">Copy</button></div>
+                        <p id="social-youtube" class="text-sm text-gray-700 dark:text-gray-300 font-medium"></p>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-surface-700 rounded-2xl border border-gray-200 dark:border-surface-600 p-5"><h4 class="text-sm font-bold mb-2">Hashtags</h4><div id="social-hashtags" class="flex flex-wrap gap-2"></div></div>
+            </div>
+        </div>
+
+        <!-- ====== ROADMAP ====== -->
+        <div id="section-roadmap" class="hidden">
+            <div class="mb-6"><p class="text-sm text-gray-500 mb-3">Select a game:</p><div id="roadmap-picker" class="flex flex-wrap gap-2"></div></div>
+            <div id="roadmap-loading" class="hidden text-center py-16"><div class="inline-flex items-center gap-3 px-5 py-3 bg-white dark:bg-surface-700 rounded-xl border border-gray-200 dark:border-surface-600 shadow-sm"><div class="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div><span class="text-sm">Planning your roadmap<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></span></div></div>
+            <div id="roadmap-content" class="hidden space-y-6">
+                <div class="bg-white dark:bg-surface-700 rounded-2xl border border-gray-200 dark:border-surface-600 p-5"><p id="roadmap-summary" class="text-sm text-gray-600 italic"></p></div>
+                <div id="roadmap-weeks" class="space-y-4"></div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-pulse-50 dark:bg-pulse-500/10 border border-pulse-200 dark:border-pulse-500/30 rounded-xl p-5"><h4 class="text-sm font-bold text-pulse-800 dark:text-pulse-400 mb-1">4-Week Milestone</h4><p id="roadmap-milestone" class="text-sm text-pulse-700 dark:text-pulse-300"></p></div>
+                    <div class="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl p-5"><h4 class="text-sm font-bold text-blue-800 dark:text-blue-400 mb-1">KPI Targets</h4><div id="roadmap-kpis" class="flex gap-4 mt-2"></div></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<script>
+// ============ STATE ============
+let games=[], selectedGameId=null, chatHistory=[], trendsLoaded=false;
+const sessionGameIds = {{ game_ids_json|safe }};
+const today = new Date().toISOString().split('T')[0];
+const sections = ['overview','insights','gameloop','competitors','trends','revenue','social','roadmap'];
+
+// ============ LOCALSTORAGE CACHE ============
+function cacheGet(k){try{const d=localStorage.getItem('gp_'+k+'_'+today);return d?JSON.parse(d):null}catch(e){return null}}
+function cacheSet(k,v){
+    // Clean old days
+    Object.keys(localStorage).forEach(key=>{if(key.startsWith('gp_')&&!key.includes(today))localStorage.removeItem(key)});
+    try{localStorage.setItem('gp_'+k+'_'+today,JSON.stringify(v))}catch(e){}
+}
+
+// ============ DARK MODE ============
+function toggleDark(){document.getElementById('html-root').classList.toggle('dark');localStorage.setItem('gp_dark',document.getElementById('html-root').classList.contains('dark'))}
+if(localStorage.getItem('gp_dark')==='true')document.getElementById('html-root').classList.add('dark');
+
+// ============ TOAST ============
+function toast(msg,type='info'){
+    const colors={info:'bg-gray-800 text-white',success:'bg-pulse-600 text-white',error:'bg-red-600 text-white'};
+    const el=document.createElement('div');
+    el.className=`toast-in px-4 py-3 rounded-xl shadow-lg text-sm font-medium ${colors[type]||colors.info} max-w-sm`;
+    el.textContent=msg;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(()=>{el.classList.replace('toast-in','toast-out');setTimeout(()=>el.remove(),300)},3000);
+}
+
+// ============ HELPERS ============
+document.getElementById('current-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+function fmt(n){if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toString()}
+function esc(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML}
+function copyText(id){navigator.clipboard.writeText(document.getElementById(id).textContent);toast('Copied!','success')}
+function pickerHtml(section,fn){return games.map(g=>`<button onclick="${fn}(${g.universe_id})" class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-surface-700 border border-gray-200 dark:border-surface-600 rounded-xl text-[13px] font-medium hover:border-pulse-400 hover:bg-pulse-50 dark:hover:bg-pulse-500/10 transition-all shadow-sm ${selectedGameId===g.universe_id?'border-pulse-500 bg-pulse-50 dark:bg-pulse-500/10 text-pulse-700 dark:text-pulse-400':''}">${g.thumbnail?`<img src="${g.thumbnail}" class="w-6 h-6 rounded-md object-cover">`:''}${esc(g.name)}</button>`).join('')}
+
+// ============ NAVIGATION ============
+function showSection(name){
+    sections.forEach(s=>document.getElementById('section-'+s).classList.toggle('hidden',s!==name));
+    document.querySelectorAll('.nav-btn').forEach(btn=>{const a=btn.id==='nav-'+name;btn.classList.toggle('bg-white/10',a);btn.classList.toggle('text-white',a);btn.classList.toggle('font-medium',a);btn.classList.toggle('text-gray-400',!a)});
+    const t={overview:['Portfolio Overview','Your games at a glance'],insights:['AI Deep Dive','Powered by Mistral AI'],gameloop:['Game Loop Analysis','Design, retention & monetization'],competitors:['Competitor Radar','Know your competition'],trends:['Trends & Opportunities','What\'s hot on Roblox'],revenue:['Revenue Estimator','Monetization intelligence'],social:['Social & Marketing','AI-generated content'],roadmap:['Update Roadmap','4-week plan']};
+    document.getElementById('page-title').textContent=(t[name]||['',''])[0];
+    document.getElementById('page-subtitle').textContent=(t[name]||['',''])[1];
+    if(name==='trends'&&!trendsLoaded&&games.length>0){trendsLoaded=true;loadTrends()}
+    ['insights','gameloop','competitors','revenue','social','roadmap'].forEach(s=>{const p=document.getElementById(s==='insights'?'insights-game-picker':s==='gameloop'?'gl-picker':s==='competitors'?'comp-picker':s==='revenue'?'rev-picker':s==='social'?'social-picker':s==='roadmap'?'roadmap-picker':'');if(p&&name===s)p.innerHTML=pickerHtml(s,s==='insights'?'getInsights':s==='gameloop'?'getGameLoop':s==='competitors'?'getCompetitors':s==='revenue'?'getRevenue':s==='social'?'getSocial':'getRoadmap')});
+}
+
+// ============ AI CHAT ============
+function toggleChat(){const p=document.getElementById('chat-panel');const f=document.getElementById('chat-fab');if(p.classList.contains('hidden')){p.classList.remove('hidden');p.classList.add('chat-open');f.classList.add('hidden')}else{p.classList.add('chat-close');f.classList.remove('hidden');setTimeout(()=>{p.classList.add('hidden');p.classList.remove('chat-open','chat-close')},300)}}
+function quickChat(msg){document.getElementById('chat-input').value=msg;sendChat()}
+async function sendChat(){
+    const input=document.getElementById('chat-input');const msg=input.value.trim();if(!msg)return;input.value='';
+    const mc=document.getElementById('chat-messages');
+    mc.innerHTML+=`<div class="bg-gray-100 dark:bg-surface-700 rounded-xl p-3 text-sm ml-8">${esc(msg)}</div>`;
+    mc.innerHTML+=`<div id="chat-typing" class="flex items-center gap-2 text-sm text-gray-400"><div class="w-4 h-4 border-2 border-pulse-500 border-t-transparent rounded-full animate-spin"></div>Thinking...</div>`;
+    mc.scrollTop=mc.scrollHeight;
+    chatHistory.push({role:'user',content:msg});
+    try{
+        const r=await fetch('/api/chat/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,history:chatHistory})});
+        const d=await r.json();
+        document.getElementById('chat-typing')?.remove();
+        const reply=d.reply||d.error||'No response';
+        chatHistory.push({role:'assistant',content:reply});
+        mc.innerHTML+=`<div class="bg-pulse-50 dark:bg-pulse-500/10 rounded-xl p-3 text-sm text-pulse-800 dark:text-pulse-300 mr-8">${esc(reply)}</div>`;
+    }catch(e){document.getElementById('chat-typing')?.remove();mc.innerHTML+=`<div class="text-red-500 text-sm">Error: ${e.message}</div>`}
+    mc.scrollTop=mc.scrollHeight;
+}
+
+// ============ INIT: AUTO-LOAD ============
+(async function init(){
+    const cached=cacheGet('portfolio');
+    if(cached&&cached.games&&cached.games.length){games=cached.games;renderPortfolio();loadBriefing();return}
+    try{
+        const r=await fetch('/api/portfolio/');const d=await r.json();
+        if(d.games&&d.games.length){games=d.games;cacheSet('portfolio',d);renderPortfolio();loadBriefing()}
+        else{document.getElementById('overview-loading').innerHTML='<div class="text-center py-16"><p class="text-sm text-gray-500 mb-4">No games found.</p><a href="/setup/" class="px-5 py-2.5 bg-pulse-500 text-white rounded-xl text-sm font-semibold">Go to Setup</a></div>'}
+    }catch(e){document.getElementById('overview-loading').innerHTML='<p class="text-red-500 text-sm py-16 text-center">Failed: '+e.message+'</p>'}
+})();
+
+// ============ ADD GAME ============
+async function addGame(){const input=document.getElementById('game-id-input');const v=input.value.trim();if(!v)return;input.value='';try{const r=await fetch('/api/add-game/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game_input:v})});const d=await r.json();if(d.error){toast(d.error,'error');return}if(d.game){games.push(d.game);localStorage.removeItem('gp_portfolio_'+today);renderPortfolio();toast('Game added!','success')}}catch(e){toast('Failed: '+e.message,'error')}}
+
+// ============ RENDER PORTFOLIO ============
+function renderPortfolio(){
+    document.getElementById('overview-loading').classList.add('hidden');
+    document.getElementById('portfolio-content').classList.remove('hidden');
+    document.getElementById('game-count').textContent=games.length+' game(s)';
+    const tp=games.reduce((s,g)=>s+(g.playing||0),0),tv=games.reduce((s,g)=>s+(g.visits||0),0),tf=games.reduce((s,g)=>s+(g.favorites||0),0);
+    document.getElementById('stats-row').innerHTML=[
+        {l:'Active Players',v:fmt(tp),c:'pulse'},{l:'Total Visits',v:fmt(tv),c:'blue'},{l:'Favorites',v:fmt(tf),c:'amber'},{l:'Games',v:games.length+'',c:'violet'},
+    ].map((s,i)=>`<div class="bg-white dark:bg-surface-700 rounded-xl border border-gray-200 dark:border-surface-600 p-5 shadow-sm anim-slide anim-slide-d${i}"><span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-2">${s.l}</span><p class="text-2xl font-bold">${s.v}</p></div>`).join('');
+    document.getElementById('game-cards').innerHTML=games.map((g,i)=>`
+        <div class="bg-white dark:bg-surface-700 rounded-xl border border-gray-200 dark:border-surface-600 p-5 shadow-sm insight-card cursor-pointer anim-slide" style="animation-delay:${i*.05}s" onclick="selectGame(${g.universe_id})">
+            <div class="flex items-start gap-3 mb-3">${g.thumbnail?`<img src="${g.thumbnail}" class="w-12 h-12 rounded-lg object-cover flex-shrink-0">`:`<div class="w-12 h-12 rounded-lg bg-gray-100 dark:bg-surface-600 flex items-center justify-center flex-shrink-0"><svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>`}<div class="min-w-0"><h4 class="font-bold text-sm truncate">${esc(g.name)}</h4><p class="text-[11px] text-gray-400">${esc(g.creator_name||'Unknown')}</p></div></div>
+            <div class="grid grid-cols-3 gap-3 mb-3"><div><span class="text-[10px] text-gray-400 block">Playing</span><span class="text-sm font-bold">${fmt(g.playing||0)}</span></div><div><span class="text-[10px] text-gray-400 block">Visits</span><span class="text-sm font-bold">${fmt(g.visits||0)}</span></div><div><span class="text-[10px] text-gray-400 block">Favs</span><span class="text-sm font-bold">${fmt(g.favorites||0)}</span></div></div>
+            <div class="grid grid-cols-4 gap-1.5">
+                <button onclick="event.stopPropagation();getInsights(${g.universe_id})" class="text-[10px] font-semibold text-pulse-600 bg-pulse-50 dark:bg-pulse-500/10 rounded-lg py-1.5 hover:bg-pulse-100 transition-colors">Insights</button>
+                <button onclick="event.stopPropagation();getGameLoop(${g.universe_id})" class="text-[10px] font-semibold text-violet-600 bg-violet-50 dark:bg-violet-500/10 rounded-lg py-1.5 hover:bg-violet-100 transition-colors">Loop</button>
+                <button onclick="event.stopPropagation();getRevenue(${g.universe_id})" class="text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg py-1.5 hover:bg-emerald-100 transition-colors">Revenue</button>
+                <button onclick="event.stopPropagation();getSocial(${g.universe_id})" class="text-[10px] font-semibold text-pink-600 bg-pink-50 dark:bg-pink-500/10 rounded-lg py-1.5 hover:bg-pink-100 transition-colors">Social</button>
+            </div>
+        </div>`).join('');
+}
+
+// ============ BRIEFING ============
+async function loadBriefing(){
+    const ck='briefing_'+games.map(g=>g.universe_id).join(',');
+    const cached=cacheGet(ck);if(cached){renderBriefing(cached);return}
+    try{const r=await fetch('/api/briefing/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({universe_ids:games.map(g=>g.universe_id)})});const d=await r.json();cacheSet(ck,d);renderBriefing(d)}catch(e){document.getElementById('briefing-loading').innerHTML='<span class="text-[13px] text-gray-400">Briefing unavailable.</span>'}
+}
+function renderBriefing(data){
+    const b=data.briefing||{};document.getElementById('briefing-loading').classList.add('hidden');document.getElementById('briefing-content').classList.remove('hidden');
+    document.getElementById('briefing-greeting').textContent=b.greeting||'Welcome back!';document.getElementById('briefing-tip').textContent=b.daily_tip||'';
+    document.getElementById('briefing-top').textContent=b.top_performer||'N/A';document.getElementById('briefing-attention').textContent=b.needs_attention||'All good!';document.getElementById('briefing-trend').textContent=b.market_trend||'';
+    if(b.quick_wins&&b.quick_wins.length){document.getElementById('briefing-qw').classList.remove('hidden');document.getElementById('qw-list').innerHTML=b.quick_wins.map(w=>`<span class="text-[12px] bg-white/10 border border-white/20 text-gray-300 rounded-lg px-3 py-1.5">${esc(w)}</span>`).join('')}
+}
+
+function selectGame(uid){selectedGameId=uid;getInsights(uid)}
+
+// ============ AI INSIGHTS ============
+async function getInsights(uid){
+    selectedGameId=uid;showSection('insights');
+    const ck='insights_'+uid;const cached=cacheGet(ck);if(cached){renderInsights(cached);return}
+    document.getElementById('insights-loading').classList.remove('hidden');document.getElementById('insights-content').classList.add('hidden');
+    try{const r=await fetch('/api/insights/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({universe_id:uid})});const d=await r.json();cacheSet(ck,d);renderInsights(d)}catch(e){document.getElementById('insights-loading').innerHTML='<p class="text-red-500 text-sm">Failed: '+e.message+'</p>'}
+}
+function renderInsights(data){
+    document.getElementById('insights-loading').classList.add('hidden');document.getElementById('insights-content').classList.remove('hidden');
+    const g=data.game||{},ins=data.insights||{},score=ins.health_score||70,circ=326.73,off=circ-(score/100)*circ;
+    const ring=document.getElementById('health-ring');ring.style.strokeDashoffset=circ;requestAnimationFrame(()=>ring.style.strokeDashoffset=off);
+    ring.setAttribute('stroke',score>=80?'#1abf6b':score>=60?'#f59e0b':'#ef4444');
+    document.getElementById('health-score-num').textContent=score;document.getElementById('health-label').textContent=ins.health_label||'Stable';
+    document.getElementById('insight-game-name').textContent=g.name||'';document.getElementById('insight-summary').textContent=ins.summary||'';
+    document.getElementById('insight-meta').innerHTML=`<span class="text-[11px] bg-gray-100 dark:bg-surface-600 px-2.5 py-1 rounded-lg">${fmt(g.playing||0)} playing</span><span class="text-[11px] bg-gray-100 dark:bg-surface-600 px-2.5 py-1 rounded-lg">${fmt(g.visits||0)} visits</span><span class="text-[11px] bg-gray-100 dark:bg-surface-600 px-2.5 py-1 rounded-lg">${g.genre||'Unknown'}</span>`;
+    const ts={positive:{bg:'bg-emerald-50 dark:bg-emerald-500/10',b:'border-emerald-200 dark:border-emerald-500/30',d:'bg-emerald-500',t:'text-emerald-700 dark:text-emerald-400'},warning:{bg:'bg-amber-50 dark:bg-amber-500/10',b:'border-amber-200 dark:border-amber-500/30',d:'bg-amber-500',t:'text-amber-700 dark:text-amber-400'},opportunity:{bg:'bg-blue-50 dark:bg-blue-500/10',b:'border-blue-200 dark:border-blue-500/30',d:'bg-blue-500',t:'text-blue-700 dark:text-blue-400'},action:{bg:'bg-violet-50 dark:bg-violet-500/10',b:'border-violet-200 dark:border-violet-500/30',d:'bg-violet-500',t:'text-violet-700 dark:text-violet-400'}};
+    document.getElementById('insights-list').innerHTML=(ins.insights||[]).map((it,i)=>{const s=ts[it.type]||ts.positive;return`<div class="insight-card ${s.bg} border ${s.b} rounded-xl p-4 anim-slide" style="animation-delay:${i*.05}s"><div class="flex items-center gap-2 mb-1.5"><span class="w-2 h-2 rounded-full ${s.d}"></span><span class="text-[11px] font-bold ${s.t} uppercase tracking-wider">${esc(it.type||'')}</span>${it.priority?`<span class="ml-auto text-[10px] text-gray-400">${it.priority}</span>`:''}</div><h5 class="font-bold text-sm mb-1">${esc(it.title||'')}</h5><p class="text-[13px] text-gray-600 dark:text-gray-400">${esc(it.description||'')}</p></div>`}).join('');
+    document.getElementById('growth-actions').innerHTML=(ins.growth_actions||[]).map((a,i)=>`<div class="bg-white dark:bg-surface-700 border border-gray-200 dark:border-surface-600 rounded-xl p-4 insight-card anim-slide" style="animation-delay:${i*.05}s"><div class="flex items-center justify-between mb-1.5"><h5 class="font-bold text-sm">${esc(a.action||'')}</h5><div class="flex gap-2"><span class="text-[10px] font-medium px-2 py-0.5 rounded ${a.effort==='low'?'bg-emerald-50 text-emerald-600':a.effort==='high'?'bg-red-50 text-red-600':'bg-amber-50 text-amber-600'}">${a.effort||'?'}</span><span class="text-[10px] font-medium px-2 py-0.5 rounded ${a.impact==='high'?'bg-emerald-50 text-emerald-600':'bg-blue-50 text-blue-600'}">${a.impact||'?'}</span></div></div><p class="text-[13px] text-gray-500">${esc(a.reason||'')}</p></div>`).join('');
+}
+
+// ============ GAME LOOP ============
+async function getGameLoop(uid){
+    selectedGameId=uid;showSection('gameloop');
+    const ck='gl_'+uid;const cached=cacheGet(ck);if(cached){renderGL(cached);return}
+    document.getElementById('gl-loading').classList.remove('hidden');document.getElementById('gl-content').classList.add('hidden');
+    try{const r=await fetch('/api/game-loop/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({universe_id:uid})});const d=await r.json();cacheSet(ck,d);renderGL(d)}catch(e){document.getElementById('gl-loading').innerHTML='<p class="text-red-500 text-sm">Failed</p>'}
+}
+function renderGL(data){
+    document.getElementById('gl-loading').classList.add('hidden');document.getElementById('gl-content').classList.remove('hidden');const a=data.analysis||{};
+    document.getElementById('gl-tldr').textContent=a.tldr||'';document.getElementById('gl-loop-rating').textContent=a.loop_rating||'—';document.getElementById('gl-engage-score').textContent=a.engagement_score||'—';
+    document.getElementById('gl-core-loop').textContent=a.core_loop||'';document.getElementById('gl-session').textContent=a.session_flow||'';
+    const sc={strong:'border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10',moderate:'border-amber-400 bg-amber-50 dark:bg-amber-500/10',weak:'border-red-400 bg-red-50 dark:bg-red-500/10'};
+    document.getElementById('gl-retention').innerHTML=(a.retention_hooks||[]).map(h=>`<div class="border-l-4 ${sc[h.strength]||'border-gray-300 bg-gray-50'} rounded-r-lg p-3"><span class="text-[12px] font-bold block">${esc(h.hook||'')}</span><span class="text-[11px] text-gray-500">${esc(h.suggestion||'')}</span></div>`).join('')||'<p class="text-sm text-gray-400">None.</p>';
+    const ic={high:'border-red-400 bg-red-50 dark:bg-red-500/10',medium:'border-amber-400 bg-amber-50 dark:bg-amber-500/10',low:'border-gray-300 bg-gray-50 dark:bg-surface-800'};
+    document.getElementById('gl-bottlenecks').innerHTML=(a.bottlenecks||[]).map(b=>`<div class="border-l-4 ${ic[b.impact]||ic.low} rounded-r-lg p-3"><span class="text-[12px] font-bold block">${esc(b.issue||'')}</span><span class="text-[11px] text-gray-500">${esc(b.fix||'')}</span></div>`).join('')||'<p class="text-sm text-gray-400">None.</p>';
+    document.getElementById('gl-monetization').innerHTML=(a.monetization_ideas||[]).map(m=>`<div class="border border-gray-200 dark:border-surface-600 rounded-lg p-3"><span class="text-[12px] font-bold block">${esc(m.idea||'')}</span><span class="text-[10px] text-gray-500">${m.type||''} · ${m.revenue_potential||''} potential</span></div>`).join('')||'<p class="text-sm text-gray-400">None.</p>';
+    document.getElementById('gl-missing').innerHTML=(a.missing_features||[]).map(f=>`<span class="text-[12px] bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 rounded-lg px-3 py-1.5">${esc(f)}</span>`).join('');
+}
+
+// ============ COMPETITORS ============
+async function getCompetitors(uid){
+    selectedGameId=uid;showSection('competitors');
+    const ck='comp_'+uid;const cached=cacheGet(ck);if(cached){renderComp(cached);return}
+    document.getElementById('comp-loading').classList.remove('hidden');document.getElementById('comp-content').classList.add('hidden');
+    try{const r=await fetch('/api/competitors/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({universe_id:uid})});const d=await r.json();cacheSet(ck,d);renderComp(d)}catch(e){document.getElementById('comp-loading').innerHTML='<p class="text-red-500 text-sm">Failed</p>'}
+}
+function renderComp(data){
+    document.getElementById('comp-loading').classList.add('hidden');document.getElementById('comp-content').classList.remove('hidden');const a=data.analysis||{};
+    document.getElementById('comp-position').innerHTML=`<h4 class="text-sm font-bold mb-2">Position</h4><p class="text-sm text-gray-600 dark:text-gray-400">${esc(a.position||'')}</p>`;
+    if(a.steal_this){document.getElementById('comp-steal').classList.remove('hidden');document.getElementById('comp-steal-text').textContent=a.steal_this}
+    document.getElementById('comp-threats').innerHTML=(a.threats||[]).map(t=>`<div class="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl p-3 insight-card"><h5 class="font-bold text-red-800 dark:text-red-400 text-[13px]">${esc(t.game||'')}</h5><p class="text-[12px] text-red-600 dark:text-red-300">${esc(t.reason||'')}</p></div>`).join('')||'<p class="text-sm text-gray-400">None.</p>';
+    document.getElementById('comp-opps').innerHTML=(a.opportunities||[]).map(o=>`<div class="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl p-3 insight-card"><h5 class="font-bold text-blue-800 dark:text-blue-400 text-[13px]">${esc(o.opportunity||'')}</h5><p class="text-[12px] text-blue-600 dark:text-blue-300">${esc(o.how||'')}</p></div>`).join('')||'<p class="text-sm text-gray-400">None.</p>';
+}
+
+// ============ TRENDS ============
+async function loadTrends(){
+    const ck='trends_'+games.map(g=>g.universe_id).join(',');const cached=cacheGet(ck);if(cached){renderTrends(cached);return}
+    try{const r=await fetch('/api/trends/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({universe_ids:games.map(g=>g.universe_id)})});const d=await r.json();cacheSet(ck,d);renderTrends(d)}catch(e){document.getElementById('trends-loading').innerHTML='<p class="text-red-500 text-sm">Failed</p>'}
+}
+function renderTrends(data){
+    document.getElementById('trends-loading').classList.add('hidden');document.getElementById('trends-content').classList.remove('hidden');const t=data.trends||{};
+    document.getElementById('trends-summary').textContent=t.market_summary||'';document.getElementById('trends-genre').textContent=t.genre_outlook||'';
+    const rc={high:'border-l-red-500 bg-red-50 dark:bg-red-500/10',medium:'border-l-amber-500 bg-amber-50 dark:bg-amber-500/10',low:'border-l-gray-400 bg-gray-50 dark:bg-surface-800'};
+    document.getElementById('trends-hot').innerHTML=(t.hot_trends||[]).map(h=>`<div class="border-l-4 ${rc[h.relevance]||rc.low} rounded-r-xl p-4 insight-card"><h5 class="font-bold text-[13px] mb-1">${esc(h.trend||'')}</h5><p class="text-[12px] text-gray-600 dark:text-gray-400">${esc(h.action||'')}</p></div>`).join('');
+    document.getElementById('trends-moves').innerHTML=(t.strategic_moves||[]).map(m=>`<div class="bg-white dark:bg-surface-700 border border-gray-200 dark:border-surface-600 rounded-xl p-4 insight-card"><h5 class="font-bold text-[13px] mb-1">${esc(m.move||'')}</h5><p class="text-[12px] text-gray-600 dark:text-gray-400">${esc(m.why||'')}</p><span class="text-[10px] text-gray-400 mt-1 inline-block">${(m.timing||'').replace('_',' ')} · ${m.effort||''} effort</span></div>`).join('');
+    document.getElementById('trends-mechanics').innerHTML=(t.rising_mechanics||[]).map(m=>`<div class="bg-white dark:bg-surface-700 border border-gray-200 dark:border-surface-600 rounded-lg p-3"><span class="font-bold text-[12px] block">${esc(m.mechanic||m)}</span>${m.why_it_works?`<span class="text-[11px] text-gray-500">${esc(m.why_it_works)}</span>`:''}</div>`).join('');
+    document.getElementById('trends-waves').innerHTML=(t.content_waves||[]).map(w=>`<div class="bg-white dark:bg-surface-700 border border-gray-200 dark:border-surface-600 rounded-lg p-3"><span class="font-bold text-[12px] block">${esc(w.wave||w)}</span>${w.opportunity?`<span class="text-[11px] text-gray-500">${esc(w.opportunity)}</span>`:''}</div>`).join('');
+}
+
+// ============ REVENUE ============
+async function getRevenue(uid){
+    selectedGameId=uid;showSection('revenue');
+    const ck='rev_'+uid;const cached=cacheGet(ck);if(cached){renderRev(cached);return}
+    document.getElementById('rev-loading').classList.remove('hidden');document.getElementById('rev-content').classList.add('hidden');
+    try{const r=await fetch('/api/revenue/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({universe_id:uid})});const d=await r.json();cacheSet(ck,d);renderRev(d)}catch(e){document.getElementById('rev-loading').innerHTML='<p class="text-red-500 text-sm">Failed</p>'}
+}
+function renderRev(data){
+    document.getElementById('rev-loading').classList.add('hidden');document.getElementById('rev-content').classList.remove('hidden');const r=data.revenue||{};
+    document.getElementById('rev-robux').textContent=r.estimated_monthly_robux||'N/A';document.getElementById('rev-usd').textContent=r.estimated_monthly_usd||'N/A';
+    const gc={A:'text-emerald-600',B:'text-blue-600',C:'text-amber-600',D:'text-orange-600',F:'text-red-600'};
+    document.getElementById('rev-grade').className='text-xl font-black '+(gc[r.revenue_grade]||'text-gray-500');document.getElementById('rev-grade').textContent=r.revenue_grade||'?';
+    document.getElementById('rev-current').textContent=r.current_monetization||'';
+    const stc={active:'bg-emerald-50 text-emerald-700 border-emerald-200',missing:'bg-red-50 text-red-700 border-red-200',underutilized:'bg-amber-50 text-amber-700 border-amber-200'};
+    document.getElementById('rev-streams').innerHTML=(r.revenue_streams||[]).map(s=>`<div class="border ${stc[s.current_status]||'border-gray-200'} rounded-lg p-3"><div class="flex items-center justify-between"><span class="font-bold text-[12px]">${esc(s.stream||'')}</span><span class="text-[10px]">${s.current_status||''}</span></div></div>`).join('');
+    document.getElementById('rev-tips').innerHTML=(r.optimization_tips||[]).map(t=>`<div class="bg-white dark:bg-surface-700 border border-gray-200 dark:border-surface-600 rounded-lg p-3"><span class="font-bold text-[12px] block">${esc(t.tip||'')}</span><span class="text-[10px] text-gray-500">${t.expected_lift||''} · ${t.effort||''} effort</span></div>`).join('');
+    document.getElementById('rev-benchmark').textContent=r.benchmark_note||'';
+}
+
+// ============ SOCIAL ============
+async function getSocial(uid){
+    selectedGameId=uid;showSection('social');
+    const ck='social_'+uid;const cached=cacheGet(ck);if(cached){renderSocial(cached);return}
+    document.getElementById('social-loading').classList.remove('hidden');document.getElementById('social-content').classList.add('hidden');
+    try{const r=await fetch('/api/social/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({universe_id:uid})});const d=await r.json();cacheSet(ck,d);renderSocial(d)}catch(e){document.getElementById('social-loading').innerHTML='<p class="text-red-500 text-sm">Failed</p>'}
+}
+function renderSocial(data){
+    document.getElementById('social-loading').classList.add('hidden');document.getElementById('social-content').classList.remove('hidden');const p=data.posts||{};
+    document.getElementById('social-twitter').textContent=p.twitter||'';document.getElementById('social-tiktok').textContent=p.tiktok_hook||'';
+    document.getElementById('social-discord').textContent=p.discord_announcement||'';document.getElementById('social-youtube').textContent=p.youtube_title||'';
+    document.getElementById('social-hashtags').innerHTML=(p.hashtags||[]).map(h=>`<span class="text-[12px] bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30 rounded-lg px-3 py-1">#${esc(h)}</span>`).join('');
+}
+
+// ============ ROADMAP ============
+async function getRoadmap(uid){
+    selectedGameId=uid;showSection('roadmap');
+    const ck='roadmap_'+uid;const cached=cacheGet(ck);if(cached){renderRoadmap(cached);return}
+    document.getElementById('roadmap-loading').classList.remove('hidden');document.getElementById('roadmap-content').classList.add('hidden');
+    try{const r=await fetch('/api/roadmap/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({universe_id:uid})});const d=await r.json();cacheSet(ck,d);renderRoadmap(d)}catch(e){document.getElementById('roadmap-loading').innerHTML='<p class="text-red-500 text-sm">Failed</p>'}
+}
+function renderRoadmap(data){
+    document.getElementById('roadmap-loading').classList.add('hidden');document.getElementById('roadmap-content').classList.remove('hidden');const rm=data.roadmap||{};
+    document.getElementById('roadmap-summary').textContent=rm.summary||'';
+    const wc=['border-l-blue-500','border-l-violet-500','border-l-amber-500','border-l-pulse-500'];
+    document.getElementById('roadmap-weeks').innerHTML=(rm.weeks||[]).map((w,i)=>`
+        <div class="bg-white dark:bg-surface-700 border border-gray-200 dark:border-surface-600 border-l-4 ${wc[i%4]} rounded-xl p-5 anim-slide" style="animation-delay:${i*.1}s">
+            <div class="flex items-center justify-between mb-3"><h4 class="font-bold text-sm">Week ${w.week||i+1}: ${esc(w.theme||'')}</h4></div>
+            <div class="space-y-2 mb-3">${(w.tasks||[]).map(t=>`<div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span><span class="text-[13px] text-gray-700 dark:text-gray-300 flex-1">${esc(t.task||t)}</span>${t.effort?`<span class="text-[10px] text-gray-400">${t.effort}/${t.impact||'?'}</span>`:''}</div>`).join('')}</div>
+            <p class="text-[12px] text-gray-500 italic">${esc(w.expected_impact||'')}</p>
+        </div>`).join('');
+    document.getElementById('roadmap-milestone').textContent=rm.milestone||'';
+    const kpis=rm.kpi_targets||{};
+    document.getElementById('roadmap-kpis').innerHTML=Object.entries(kpis).map(([k,v])=>`<div class="text-center"><span class="text-lg font-black text-blue-700 dark:text-blue-400">${esc(v)}</span><span class="text-[10px] text-gray-500 block">${esc(k)}</span></div>`).join('');
+}
+</script>
+</body>
+</html>

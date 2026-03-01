@@ -1,0 +1,77 @@
+[
+  {
+    "iteration": 1,
+    "prompt_version": "v4",
+    "composite_score": 0.8972,
+    "dimension_scores": {
+      "syntax": 0.9760000000000002,
+      "api": 1.0,
+      "bugs": 0.6733333333333335,
+      "quality": 0.9161333333333331,
+      "task": 0.9196666666666667
+    },
+    "weaknesses": [
+      {
+        "dimension": "bugs",
+        "score": 0.6733,
+        "threshold": 0.8,
+        "gap": 0.1267
+      }
+    ],
+    "worst_task": {
+      "task": "Create a shop NPC with a ProximityPrompt. When a player interacts, open a shop GUI showing 3 items w",
+      "score": 0.743
+    },
+    "timestamp": "2026-03-01T11:32:06.506259+00:00"
+  },
+  {
+    "iteration": 2,
+    "prompt_version": "v5",
+    "composite_score": 0.9024,
+    "dimension_scores": {
+      "syntax": 0.9680000000000001,
+      "api": 1.0,
+      "bugs": 0.7100000000000002,
+      "quality": 0.9019999999999998,
+      "task": 0.9260666666666668
+    },
+    "weaknesses": [
+      {
+        "dimension": "bugs",
+        "score": 0.71,
+        "threshold": 0.8,
+        "gap": 0.09
+      }
+    ],
+    "worst_task": {
+      "task": "Create a player data save system using DataStoreService. Save player level, experience, and coins wh",
+      "score": 0.8212499999999999
+    },
+    "timestamp": "2026-03-01T11:39:16.562596+00:00"
+  },
+  {
+    "iteration": 3,
+    "prompt_version": "v6",
+    "composite_score": 0.8899,
+    "dimension_scores": {
+      "syntax": 0.9680000000000001,
+      "api": 0.9833333333333333,
+      "bugs": 0.6566666666666667,
+      "quality": 0.9019999999999998,
+      "task": 0.9320666666666667
+    },
+    "weaknesses": [
+      {
+        "dimension": "bugs",
+        "score": 0.6567,
+        "threshold": 0.8,
+        "gap": 0.1433
+      }
+    ],
+    "worst_task": {
+      "task": "Build a trading system between two players. Player A requests a trade, Player B accepts or declines ",
+      "score": 0.7849999999999999
+    },
+    "timestamp": "2026-03-01T11:46:35.884998+00:00"
+  }
+]

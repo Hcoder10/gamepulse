@@ -1,0 +1,16 @@
+{
+  "weights": {
+    "syntax": 0.20,
+    "api": 0.20,
+    "bugs": 0.20,
+    "quality": 0.15,
+    "task": 0.25
+  },
+  "thresholds": {
+    "syntax": 0.85,
+    "api": 0.80,
+    "bugs": 0.80,
+    "quality": 0.75,
+    "task": 0.70
+  }
+}

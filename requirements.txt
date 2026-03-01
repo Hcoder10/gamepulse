@@ -1,0 +1,9 @@
+django>=4.2
+gunicorn>=21.2
+whitenoise>=6.6
+requests>=2.31
+python-dotenv>=1.0
+mistralai>=1.0.0
+weave
+wandb
+pydantic

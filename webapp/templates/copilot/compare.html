@@ -1,0 +1,344 @@
+{% extends "copilot/base.html" %}
+{% load copilot_extras %}
+
+{% block title %}Compare Models - Luau Copilot{% endblock %}
+{% block nav_compare %}active{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">Model Comparison</h1>
+        <p class="text-gray-400">See how Base Mistral, SFT, and RFT models compare on the same tasks. Select a task to generate side-by-side outputs.</p>
+    </div>
+
+    <!-- Task Selector -->
+    <div class="rounded-xl bg-surface-800 border border-surface-600/50 p-6 mb-8">
+        <label class="block text-sm font-semibold text-gray-200 mb-3">Select a Test Task</label>
+        <div class="flex flex-col md:flex-row gap-4">
+            <select id="task-select" class="flex-1 bg-surface-700 border border-surface-500 rounded-lg px-4 py-3 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-luau-blue/50 focus:border-luau-blue">
+                <option value="">Choose a preset task...</option>
+                {% for task in test_tasks %}
+                <option value="{{ task.task_description }}">
+                    [{{ task.category }}] {{ task.task_description|truncatechars:100 }}
+                </option>
+                {% endfor %}
+            </select>
+            <button
+                id="compare-btn"
+                onclick="runComparison()"
+                class="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-luau-blue to-luau-purple text-white font-semibold shadow-lg hover:shadow-luau-blue/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                <svg id="compare-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <div id="compare-spinner" class="spinner hidden"></div>
+                <span id="compare-text">Compare All Models</span>
+            </button>
+        </div>
+        <p id="compare-status" class="mt-3 text-xs text-gray-500 hidden"></p>
+    </div>
+
+    <!-- Comparison Results -->
+    <div id="comparison-results" class="hidden space-y-6">
+        <!-- Score Comparison Table -->
+        <div class="rounded-xl bg-surface-800 border border-surface-600/50 overflow-hidden">
+            <div class="px-6 py-4 border-b border-surface-600/50">
+                <h3 class="text-sm font-semibold text-white">Score Comparison</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-surface-600/30">
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Dimension</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-luau-blue uppercase tracking-wider">Base Mistral</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-luau-purple uppercase tracking-wider">SFT</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-luau-green uppercase tracking-wider">RFT</th>
+                        </tr>
+                    </thead>
+                    <tbody id="score-table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Side-by-Side Code -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Base -->
+            <div class="rounded-xl bg-surface-800 border border-surface-600/50 overflow-hidden">
+                <div class="px-4 py-3 border-b border-surface-600/50 bg-luau-blue/5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold text-luau-blue">Base Mistral</span>
+                        <span id="base-avg" class="text-xs font-mono font-bold text-gray-400"></span>
+                    </div>
+                </div>
+                <div class="code-output p-4 font-mono text-xs overflow-auto" style="max-height: 500px;">
+                    <pre><code id="base-code" class="language-lua"></code></pre>
+                </div>
+            </div>
+
+            <!-- SFT -->
+            <div class="rounded-xl bg-surface-800 border border-surface-600/50 overflow-hidden">
+                <div class="px-4 py-3 border-b border-surface-600/50 bg-luau-purple/5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold text-luau-purple">SFT Model</span>
+                        <span id="sft-avg" class="text-xs font-mono font-bold text-gray-400"></span>
+                    </div>
+                </div>
+                <div class="code-output p-4 font-mono text-xs overflow-auto" style="max-height: 500px;">
+                    <pre><code id="sft-code" class="language-lua"></code></pre>
+                </div>
+            </div>
+
+            <!-- RFT -->
+            <div class="rounded-xl bg-surface-800 border border-surface-600/50 overflow-hidden">
+                <div class="px-4 py-3 border-b border-surface-600/50 bg-luau-green/5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold text-luau-green">RFT Model</span>
+                        <span id="rft-avg" class="text-xs font-mono font-bold text-gray-400"></span>
+                    </div>
+                </div>
+                <div class="code-output p-4 font-mono text-xs overflow-auto" style="max-height: 500px;">
+                    <pre><code id="rft-code" class="language-lua"></code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historical Results -->
+    <div class="mt-12 space-y-8">
+        <div class="text-center">
+            <h2 class="text-2xl font-bold text-white mb-2">Training Progress</h2>
+            <p class="text-gray-400 text-sm">Score evolution across prompt iterations and Code Forge rounds.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Iteration Chart (Canvas) -->
+            <div class="rounded-xl bg-surface-800 border border-surface-600/50 p-6">
+                <h3 class="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-luau-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                    Prompt Iteration Scores
+                </h3>
+                <canvas id="iteration-chart" height="250"></canvas>
+            </div>
+
+            <!-- Forge Chart (Canvas) -->
+            <div class="rounded-xl bg-surface-800 border border-surface-600/50 p-6">
+                <h3 class="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-luau-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+                    </svg>
+                    Code Forge Pass Rate
+                </h3>
+                <canvas id="forge-chart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Toast -->
+<div id="error-toast" class="fixed bottom-6 right-6 max-w-md bg-roblox-red/90 text-white px-6 py-4 rounded-xl shadow-2xl hidden z-50 animate-slide-up">
+    <div class="flex items-start gap-3">
+        <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+        <p id="error-message" class="text-sm"></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+    const iterationLog = {{ iteration_log|safe }};
+    const forgeLog = {{ forge_log|safe }};
+
+    function showError(msg) {
+        document.getElementById('error-message').textContent = msg;
+        const toast = document.getElementById('error-toast');
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 6000);
+    }
+
+    async function runComparison() {
+        const task = document.getElementById('task-select').value;
+        if (!task) {
+            showError('Please select a task first.');
+            return;
+        }
+
+        const btn = document.getElementById('compare-btn');
+        const icon = document.getElementById('compare-icon');
+        const spinner = document.getElementById('compare-spinner');
+        const text = document.getElementById('compare-text');
+        const status = document.getElementById('compare-status');
+
+        btn.disabled = true;
+        icon.classList.add('hidden');
+        spinner.classList.remove('hidden');
+        text.textContent = 'Generating...';
+        status.classList.remove('hidden');
+
+        const models = ['base', 'sft', 'rft'];
+        const results = {};
+
+        for (const model of models) {
+            status.textContent = `Generating ${model.toUpperCase()} output...`;
+            try {
+                const resp = await fetch('/copilot/api/generate/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task, model }),
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    results[model] = data;
+                } else {
+                    results[model] = { code: '-- Error: ' + (data.error || 'Generation failed'), scores: { syntax: 0, api: 0, bugs: 0, quality: 0 }, avg_score: 0 };
+                }
+            } catch (err) {
+                results[model] = { code: '-- Network error: ' + err.message, scores: { syntax: 0, api: 0, bugs: 0, quality: 0 }, avg_score: 0 };
+            }
+        }
+
+        // Display results
+        document.getElementById('comparison-results').classList.remove('hidden');
+
+        // Code panels
+        models.forEach(model => {
+            const codeEl = document.getElementById(model + '-code');
+            codeEl.textContent = results[model].code;
+            hljs.highlightElement(codeEl);
+            document.getElementById(model + '-avg').textContent = (results[model].avg_score * 100).toFixed(0) + '%';
+        });
+
+        // Score table
+        const dims = ['syntax', 'api', 'bugs', 'quality', 'avg'];
+        const tbody = document.getElementById('score-table-body');
+        tbody.innerHTML = '';
+
+        dims.forEach(dim => {
+            const label = dim === 'avg' ? 'Average' : dim.charAt(0).toUpperCase() + dim.slice(1);
+            const isAvg = dim === 'avg';
+            const row = document.createElement('tr');
+            row.className = 'border-b border-surface-600/20' + (isAvg ? ' bg-surface-700/20 font-bold' : '');
+
+            let cells = `<td class="px-6 py-3 text-sm text-gray-300">${label}</td>`;
+            models.forEach(model => {
+                const score = isAvg ? results[model].avg_score : (results[model].scores[dim] || 0);
+                const pct = (score * 100).toFixed(0);
+                const color = score >= 0.85 ? 'text-luau-green' : score >= 0.7 ? 'text-luau-orange' : 'text-roblox-red';
+                cells += `<td class="px-6 py-3 text-center text-sm font-mono ${color}">${pct}%</td>`;
+            });
+
+            row.innerHTML = cells;
+            tbody.appendChild(row);
+        });
+
+        // Reset UI
+        btn.disabled = false;
+        icon.classList.remove('hidden');
+        spinner.classList.add('hidden');
+        text.textContent = 'Compare All Models';
+        status.classList.add('hidden');
+    }
+
+    // --- Charts ---
+    function renderCharts() {
+        // Iteration chart
+        if (iterationLog.length > 0) {
+            const ctx1 = document.getElementById('iteration-chart').getContext('2d');
+            const labels = iterationLog.map(e => 'Iter ' + e.iteration);
+            const dims = ['syntax', 'api', 'bugs', 'quality'];
+            const colors = { syntax: '#00a2ff', api: '#8b5cf6', bugs: '#f59e0b', quality: '#10b981' };
+
+            new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: dims.map(dim => ({
+                        label: dim.charAt(0).toUpperCase() + dim.slice(1),
+                        data: iterationLog.map(e => e.dimension_scores[dim] || 0),
+                        borderColor: colors[dim],
+                        backgroundColor: colors[dim] + '20',
+                        tension: 0.3,
+                        pointRadius: 4,
+                        borderWidth: 2,
+                    })),
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { labels: { color: '#9ca3af', font: { size: 11 } } },
+                    },
+                    scales: {
+                        y: {
+                            min: 0.5, max: 1.05,
+                            ticks: { color: '#6b7280', callback: v => (v * 100).toFixed(0) + '%' },
+                            grid: { color: '#1e253622' },
+                        },
+                        x: {
+                            ticks: { color: '#6b7280' },
+                            grid: { color: '#1e253622' },
+                        },
+                    },
+                },
+            });
+        }
+
+        // Forge chart
+        if (forgeLog.length > 0) {
+            const ctx2 = document.getElementById('forge-chart').getContext('2d');
+            const labels = forgeLog.map(e => 'Round ' + e.round);
+
+            new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Pass Rate',
+                            data: forgeLog.map(e => e.pass_rate),
+                            backgroundColor: '#10b98140',
+                            borderColor: '#10b981',
+                            borderWidth: 2,
+                            borderRadius: 6,
+                        },
+                        {
+                            label: 'Avg Score (after correction)',
+                            data: forgeLog.map(e => e.avg_final_score),
+                            backgroundColor: '#8b5cf640',
+                            borderColor: '#8b5cf6',
+                            borderWidth: 2,
+                            borderRadius: 6,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { labels: { color: '#9ca3af', font: { size: 11 } } },
+                    },
+                    scales: {
+                        y: {
+                            min: 0.5, max: 1.05,
+                            ticks: { color: '#6b7280', callback: v => (v * 100).toFixed(0) + '%' },
+                            grid: { color: '#1e253622' },
+                        },
+                        x: {
+                            ticks: { color: '#6b7280' },
+                            grid: { color: '#1e253622' },
+                        },
+                    },
+                },
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', renderCharts);
+</script>
+{% endblock %}

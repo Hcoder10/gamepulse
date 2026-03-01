@@ -1,0 +1,475 @@
+{% extends "copilot/base.html" %}
+
+{% block title %}Agent — Luau Copilot{% endblock %}
+{% block nav_chat %}bg-sage-50 text-sage-700 font-semibold{% endblock %}
+{% block footer %}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .chat-container { height: calc(100vh - 65px); }
+    .messages-area { scrollbar-width: thin; scrollbar-color: #d6d3d1 transparent; }
+    .messages-area::-webkit-scrollbar { width: 5px; }
+    .messages-area::-webkit-scrollbar-track { background: transparent; }
+    .messages-area::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 3px; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes blink { 0%,80%,100% { opacity: 0.2; } 40% { opacity: 1; } }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .msg-user { animation: slideUp 0.3s ease-out; }
+    .msg-ai { animation: slideUp 0.35s ease-out; }
+    .thinking-dots span { animation: blink 1.4s infinite both; }
+    .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+    .score-pill { transition: width 0.6s ease-out; }
+    .studio-pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+    .code-block-chat { max-height: 500px; overflow: auto; }
+    .code-block-chat pre { margin: 0; }
+    .code-block-chat code { font-size: 0.8rem; line-height: 1.6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container flex">
+
+    <!-- Sidebar -->
+    <div class="w-72 border-r border-stone-200 bg-white flex flex-col flex-shrink-0">
+
+        <!-- Studio Connection -->
+        <div class="p-4 border-b border-stone-100">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-[11px] font-semibold text-stone-400 uppercase tracking-wider">Studio Link</span>
+                <div class="flex items-center gap-1.5">
+                    <div id="studio-dot" class="w-2 h-2 rounded-full bg-stone-300"></div>
+                    <span id="studio-label" class="text-[11px] text-stone-400">Disconnected</span>
+                </div>
+            </div>
+            <p class="text-[11px] text-stone-400 mb-2">Session ID for the Roblox Studio plugin</p>
+            <div class="flex items-center gap-2">
+                <input id="studio-session" type="text" readonly
+                    class="flex-1 bg-cream-100 border border-stone-200 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-stone-600 select-all focus:outline-none">
+                <button onclick="copySession()" class="text-[11px] text-sage-600 hover:text-sage-700 font-medium transition-colors">Copy</button>
+            </div>
+        </div>
+
+        <!-- Model -->
+        <div class="p-4 border-b border-stone-100">
+            <span class="text-[11px] font-semibold text-stone-400 uppercase tracking-wider block mb-3">Model</span>
+            <div class="space-y-0.5">
+                <label class="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer hover:bg-sage-50 transition-colors">
+                    <input type="radio" name="model" value="rft" checked class="w-3.5 h-3.5 text-sage-600 focus:ring-sage-500 border-stone-300">
+                    <span class="text-sm text-stone-700">RFT</span>
+                    <span class="text-[11px] text-stone-400 ml-auto">Best</span>
+                </label>
+                <label class="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer hover:bg-sage-50 transition-colors">
+                    <input type="radio" name="model" value="sft" class="w-3.5 h-3.5 text-sage-600 focus:ring-sage-500 border-stone-300">
+                    <span class="text-sm text-stone-700">SFT</span>
+                    <span class="text-[11px] text-stone-400 ml-auto">Fine-tuned</span>
+                </label>
+                <label class="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer hover:bg-sage-50 transition-colors">
+                    <input type="radio" name="model" value="base" class="w-3.5 h-3.5 text-sage-600 focus:ring-sage-500 border-stone-300">
+                    <span class="text-sm text-stone-700">Base</span>
+                    <span class="text-[11px] text-stone-400 ml-auto">Devstral</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="p-4 border-b border-stone-100">
+            <label class="flex items-center gap-2.5 cursor-pointer">
+                <input type="checkbox" id="auto-correct-toggle" checked class="w-4 h-4 rounded text-sage-600 focus:ring-sage-500 border-stone-300">
+                <span class="text-sm text-stone-600">Auto self-correct</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer mt-2.5">
+                <input type="checkbox" id="auto-studio-toggle" checked class="w-4 h-4 rounded text-sage-600 focus:ring-sage-500 border-stone-300">
+                <span class="text-sm text-stone-600">Auto send to Studio</span>
+            </label>
+        </div>
+
+        <!-- Quick Tasks -->
+        <div class="p-4 flex-1 overflow-auto">
+            <span class="text-[11px] font-semibold text-stone-400 uppercase tracking-wider block mb-3">Quick Tasks</span>
+            <div class="space-y-0.5">
+                <button onclick="quickTask('Create a kill brick that damages players on touch')" class="w-full text-left text-sm px-3 py-2 rounded-lg text-stone-500 hover:text-sage-700 hover:bg-sage-50 transition-colors">Kill Brick</button>
+                <button onclick="quickTask('Create a coin collection system with leaderstats')" class="w-full text-left text-sm px-3 py-2 rounded-lg text-stone-500 hover:text-sage-700 hover:bg-sage-50 transition-colors">Coin System</button>
+                <button onclick="quickTask('Create a round-based game system with lobby and timer')" class="w-full text-left text-sm px-3 py-2 rounded-lg text-stone-500 hover:text-sage-700 hover:bg-sage-50 transition-colors">Round System</button>
+                <button onclick="quickTask('Create a data save system using DataStoreService')" class="w-full text-left text-sm px-3 py-2 rounded-lg text-stone-500 hover:text-sage-700 hover:bg-sage-50 transition-colors">Data Save</button>
+                <button onclick="quickTask('Create an NPC that patrols waypoints with pathfinding')" class="w-full text-left text-sm px-3 py-2 rounded-lg text-stone-500 hover:text-sage-700 hover:bg-sage-50 transition-colors">NPC Patrol</button>
+                <button onclick="quickTask('Build a shop GUI with buy buttons and currency')" class="w-full text-left text-sm px-3 py-2 rounded-lg text-stone-500 hover:text-sage-700 hover:bg-sage-50 transition-colors">Shop GUI</button>
+                <button onclick="quickTask('Implement a secure remote event system for inventory')" class="w-full text-left text-sm px-3 py-2 rounded-lg text-stone-500 hover:text-sage-700 hover:bg-sage-50 transition-colors">Remote Events</button>
+                <button onclick="quickTask('Create a cannon that shoots projectiles with physics')" class="w-full text-left text-sm px-3 py-2 rounded-lg text-stone-500 hover:text-sage-700 hover:bg-sage-50 transition-colors">Projectile Cannon</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="flex-1 flex flex-col min-w-0 bg-cream-50">
+
+        <!-- Messages -->
+        <div id="messages" class="messages-area flex-1 overflow-auto px-6 py-6 space-y-4">
+            <!-- Welcome -->
+            <div class="msg-ai flex gap-3 max-w-3xl">
+                <div class="w-8 h-8 rounded-lg bg-sage-500 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                    </svg>
+                </div>
+                <div class="bg-white rounded-2xl rounded-tl-md px-5 py-4 border border-stone-200 shadow-sm">
+                    <p class="text-sm text-stone-700 leading-relaxed">Hey! I'm <span class="font-semibold text-sage-700">Luau Copilot</span> — your AI Roblox developer. Tell me what you want to build and I'll generate production-ready Luau code.</p>
+                    <p class="text-sm text-stone-400 mt-2">I'll score the code across 4 quality dimensions and self-correct any issues. Connect the Studio plugin to auto-insert scripts into your game.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input -->
+        <div class="border-t border-stone-200 bg-white px-6 py-4">
+            <div class="max-w-3xl mx-auto">
+                <div class="relative">
+                    <textarea
+                        id="chat-input"
+                        rows="1"
+                        class="w-full bg-cream-100 border border-stone-200 rounded-xl px-5 py-3.5 pr-14 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-sage-500/30 focus:border-sage-400 resize-none transition-colors"
+                        placeholder="Describe what you want to build..."
+                        onkeydown="handleKeyDown(event)"
+                        oninput="autoResize(this)"
+                    ></textarea>
+                    <button
+                        id="send-btn"
+                        onclick="sendMessage()"
+                        class="absolute right-3 bottom-3 w-8 h-8 rounded-lg bg-sage-500 hover:bg-sage-600 flex items-center justify-center text-white transition-colors disabled:opacity-30"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5m0 0l-7 7m7-7l7 7"/>
+                        </svg>
+                    </button>
+                </div>
+                <span class="text-[11px] text-stone-400 mt-1.5 block">Enter to send, Shift+Enter for newline</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ---- State ----
+    let sessionId = 'session-' + Math.random().toString(36).substr(2, 9);
+    let isGenerating = false;
+    let studioConnected = false;
+    document.getElementById('studio-session').value = sessionId;
+
+    // ---- Helpers ----
+    function autoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+    }
+    function handleKeyDown(e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    }
+    function getSelectedModel() {
+        return document.querySelector('input[name="model"]:checked').value;
+    }
+    function quickTask(text) {
+        document.getElementById('chat-input').value = text;
+        sendMessage();
+    }
+    function copySession() {
+        navigator.clipboard.writeText(sessionId);
+    }
+    function scrollToBottom() {
+        const msgs = document.getElementById('messages');
+        msgs.scrollTop = msgs.scrollHeight;
+    }
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(text));
+        return div.innerHTML;
+    }
+    function removeElement(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    }
+
+    // ---- Message renderers ----
+    function addUserMessage(text) {
+        const msgs = document.getElementById('messages');
+        msgs.innerHTML += `
+            <div class="msg-user flex justify-end">
+                <div class="bg-sage-50 border border-sage-200 rounded-2xl rounded-tr-md px-5 py-3 max-w-2xl">
+                    <p class="text-sm text-stone-700">${escapeHtml(text)}</p>
+                </div>
+            </div>`;
+        scrollToBottom();
+    }
+
+    function addThinkingMessage(text) {
+        const id = 'thinking-' + Date.now();
+        const msgs = document.getElementById('messages');
+        msgs.innerHTML += `
+            <div id="${id}" class="msg-ai flex gap-3 max-w-3xl">
+                <div class="w-8 h-8 rounded-lg bg-sage-400 flex items-center justify-center flex-shrink-0 mt-1 opacity-70">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                    </svg>
+                </div>
+                <div class="bg-white rounded-2xl rounded-tl-md px-5 py-3 border border-stone-200">
+                    <p class="text-sm text-stone-400 flex items-center gap-2">
+                        <span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span>
+                        ${escapeHtml(text)}
+                    </p>
+                </div>
+            </div>`;
+        scrollToBottom();
+        return id;
+    }
+
+    function addThinkingBrief(text) {
+        const msgs = document.getElementById('messages');
+        msgs.innerHTML += `
+            <div class="msg-ai flex gap-3 max-w-3xl">
+                <div class="w-8 h-8 flex-shrink-0"></div>
+                <p class="text-xs text-stone-400 italic py-1">${escapeHtml(text)}</p>
+            </div>`;
+        scrollToBottom();
+    }
+
+    function addCodeMessage(code, label) {
+        const msgs = document.getElementById('messages');
+        const codeId = 'code-' + Date.now();
+        msgs.innerHTML += `
+            <div class="msg-ai flex gap-3 max-w-4xl">
+                <div class="w-8 h-8 rounded-lg bg-sage-500 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="rounded-xl overflow-hidden border border-stone-200 shadow-sm">
+                        <div class="flex items-center justify-between px-4 py-2.5 bg-stone-50 border-b border-stone-200">
+                            <span class="text-xs text-stone-500 font-mono">${escapeHtml(label || 'output.luau')}</span>
+                            <div class="flex items-center gap-3">
+                                <button onclick="copyCode('${codeId}')" class="text-xs text-stone-400 hover:text-stone-600 transition-colors">Copy</button>
+                                <button onclick="sendToStudio('${codeId}')" class="text-xs text-sage-600 hover:text-sage-700 font-medium transition-colors">Send to Studio</button>
+                            </div>
+                        </div>
+                        <div class="code-block-chat bg-white p-4">
+                            <pre><code id="${codeId}" class="language-lua">${escapeHtml(code)}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        const el = document.getElementById(codeId);
+        if (el) hljs.highlightElement(el);
+        scrollToBottom();
+    }
+
+    function addScoresMessage(scores, avgScore, issues, passed) {
+        const msgs = document.getElementById('messages');
+        const dims = [
+            { key: 'syntax', label: 'Syntax', color: '#3b82f6' },
+            { key: 'api', label: 'API', color: '#8b5cf6' },
+            { key: 'bugs', label: 'Bugs', color: '#f59e0b' },
+            { key: 'quality', label: 'Quality', color: '#10b981' },
+        ];
+        const passLabel = passed
+            ? '<span class="text-emerald-600 font-semibold text-xs">PASSED</span>'
+            : '<span class="text-red-500 font-semibold text-xs">NEEDS FIX</span>';
+        const avgColor = avgScore >= 0.85 ? 'text-emerald-600' : avgScore >= 0.7 ? 'text-amber-600' : 'text-red-500';
+
+        let barsHtml = dims.map(d => {
+            const val = scores[d.key] || 0;
+            const pct = (val * 100).toFixed(0);
+            return `
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-stone-500 w-14">${d.label}</span>
+                    <div class="flex-1 bg-stone-100 rounded-full h-1.5">
+                        <div class="h-1.5 rounded-full score-pill" style="background:${d.color};width:${pct}%"></div>
+                    </div>
+                    <span class="text-xs font-mono text-stone-600 w-10 text-right">${pct}%</span>
+                </div>`;
+        }).join('');
+
+        let issuesHtml = '';
+        if (issues && issues.length > 0) {
+            issuesHtml = `<div class="mt-3 pt-3 border-t border-stone-100">
+                <div class="text-xs text-stone-400 space-y-1">
+                    ${issues.slice(0, 5).map(i => '<div class="flex items-start gap-1.5"><span class="text-red-400">&#x2022;</span><span>' + escapeHtml(i) + '</span></div>').join('')}
+                </div>
+            </div>`;
+        }
+
+        msgs.innerHTML += `
+            <div class="msg-ai flex gap-3 max-w-3xl">
+                <div class="w-8 h-8 flex-shrink-0"></div>
+                <div class="bg-white rounded-xl px-5 py-4 border border-stone-200 shadow-sm w-full max-w-md">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold text-stone-400">Quality Scores</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold font-mono ${avgColor}">${(avgScore * 100).toFixed(0)}%</span>
+                            ${passLabel}
+                        </div>
+                    </div>
+                    <div class="space-y-2">${barsHtml}</div>
+                    ${issuesHtml}
+                </div>
+            </div>`;
+        scrollToBottom();
+    }
+
+    function addCorrectionMessage(data) {
+        const msgs = document.getElementById('messages');
+        const origPct = (data.original_avg * 100).toFixed(0);
+        const finalPct = (data.final_avg * 100).toFixed(0);
+        const improved = data.improved;
+        const arrow = improved ? '&uarr;' : '&darr;';
+        const color = improved ? 'text-emerald-600' : 'text-red-500';
+
+        msgs.innerHTML += `
+            <div class="msg-ai flex gap-3 max-w-3xl">
+                <div class="w-8 h-8 flex-shrink-0"></div>
+                <div class="bg-emerald-50 rounded-xl px-5 py-3 border border-emerald-200">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        <span class="text-sm text-stone-700">Self-corrected in <strong>${data.rounds}</strong> round(s): <span class="font-mono text-stone-500">${origPct}%</span> <span class="${color} font-mono font-semibold">${arrow} ${finalPct}%</span></span>
+                    </div>
+                </div>
+            </div>`;
+        scrollToBottom();
+    }
+
+    function addStudioMessage(text) {
+        const msgs = document.getElementById('messages');
+        msgs.innerHTML += `
+            <div class="msg-ai flex gap-3 max-w-3xl">
+                <div class="w-8 h-8 flex-shrink-0"></div>
+                <div class="bg-sage-50 rounded-xl px-5 py-3 border border-sage-200">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-sage-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <span class="text-sm text-stone-600">${escapeHtml(text)}</span>
+                    </div>
+                </div>
+            </div>`;
+        scrollToBottom();
+    }
+
+    function addErrorMessage(text) {
+        const msgs = document.getElementById('messages');
+        msgs.innerHTML += `
+            <div class="msg-ai flex gap-3 max-w-3xl">
+                <div class="w-8 h-8 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center flex-shrink-0 mt-1">
+                    <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                </div>
+                <div class="bg-red-50 rounded-2xl rounded-tl-md px-5 py-3 border border-red-200">
+                    <p class="text-sm text-red-600">${escapeHtml(text)}</p>
+                </div>
+            </div>`;
+        scrollToBottom();
+    }
+
+    // ---- Actions ----
+    function copyCode(codeId) {
+        const el = document.getElementById(codeId);
+        if (el) navigator.clipboard.writeText(el.textContent);
+    }
+
+    async function sendToStudio(codeId) {
+        const el = document.getElementById(codeId);
+        if (!el) return;
+        try {
+            const resp = await fetch('/copilot/api/studio/send/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId, code: el.textContent, name: 'GeneratedScript', parent: 'ServerScriptService' }),
+            });
+            const data = await resp.json();
+            if (data.ok) {
+                addStudioMessage('Script queued for Studio (ID: ' + data.command_id + ')');
+            } else {
+                addErrorMessage('Studio send failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            addErrorMessage('Failed to send to Studio: ' + err.message);
+        }
+    }
+
+    // ---- Main send ----
+    async function sendMessage() {
+        if (isGenerating) return;
+        const input = document.getElementById('chat-input');
+        const task = input.value.trim();
+        if (!task) return;
+
+        input.value = '';
+        input.style.height = 'auto';
+        isGenerating = true;
+        document.getElementById('send-btn').disabled = true;
+
+        addUserMessage(task);
+        const thinkingId = addThinkingMessage('Generating code...');
+
+        const model = getSelectedModel();
+        const autoCorrect = document.getElementById('auto-correct-toggle').checked;
+        const autoStudio = document.getElementById('auto-studio-toggle').checked;
+
+        try {
+            const resp = await fetch('/copilot/api/agentic/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task, model, auto_correct: autoCorrect, session_id: autoStudio ? sessionId : null }),
+            });
+
+            removeElement(thinkingId);
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                addErrorMessage(data.error || 'Generation failed.');
+                return;
+            }
+
+            for (const step of data.steps) {
+                if (step.type === 'thinking') addThinkingBrief(step.text);
+                else if (step.type === 'code') addCodeMessage(step.code, step.label);
+                else if (step.type === 'scores') addScoresMessage(step.scores, step.avg_score, step.issues, step.passed);
+                else if (step.type === 'correction') addCorrectionMessage(step);
+                else if (step.type === 'studio') addStudioMessage(step.text);
+            }
+        } catch (err) {
+            removeElement(thinkingId);
+            addErrorMessage('Network error: ' + err.message);
+        } finally {
+            isGenerating = false;
+            document.getElementById('send-btn').disabled = false;
+        }
+    }
+
+    // ---- Studio heartbeat ----
+    async function checkStudioConnection() {
+        try {
+            const resp = await fetch('/copilot/api/studio/heartbeat/?session_id=' + sessionId);
+            const data = await resp.json();
+            const dot = document.getElementById('studio-dot');
+            const label = document.getElementById('studio-label');
+            if (data.last_poll && (Date.now() / 1000 - data.last_poll) < 10) {
+                if (!studioConnected) {
+                    studioConnected = true;
+                    dot.className = 'w-2 h-2 rounded-full bg-emerald-500 studio-pulse';
+                    label.textContent = 'Connected';
+                    label.className = 'text-[11px] text-emerald-600 font-medium';
+                }
+            } else {
+                if (studioConnected) {
+                    studioConnected = false;
+                    dot.className = 'w-2 h-2 rounded-full bg-stone-300';
+                    label.textContent = 'Disconnected';
+                    label.className = 'text-[11px] text-stone-400';
+                }
+            }
+        } catch {}
+    }
+    setInterval(checkStudioConnection, 5000);
+</script>
+{% endblock %}

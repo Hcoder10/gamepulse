@@ -1,0 +1,60 @@
+[
+  {
+    "round": 1,
+    "difficulty": 0,
+    "n_tasks": 15,
+    "avg_original_score": 0.871,
+    "avg_final_score": 0.882,
+    "pass_rate": 0.667,
+    "corrections_made": 3,
+    "evolved_rules": 1,
+    "category_scores": {
+      "npc_behavior": 0.843,
+      "game_mechanics": 0.893,
+      "ui": 0.874,
+      "physics_cframe": 0.956,
+      "data_persistence": 0.843,
+      "remote_events": 0.833,
+      "advanced": 0.927
+    },
+    "timestamp": "2026-03-01T11:38:06.243591+00:00"
+  },
+  {
+    "round": 2,
+    "difficulty": 1,
+    "n_tasks": 13,
+    "avg_original_score": 0.871,
+    "avg_final_score": 0.881,
+    "pass_rate": 0.692,
+    "corrections_made": 1,
+    "evolved_rules": 1,
+    "category_scores": {
+      "npc_behavior": 0.878,
+      "game_mechanics": 0.868,
+      "ui": 0.859,
+      "physics_cframe": 0.889,
+      "data_persistence": 0.918,
+      "remote_events": 0.886
+    },
+    "timestamp": "2026-03-01T11:48:48.475265+00:00"
+  },
+  {
+    "round": 3,
+    "difficulty": 2,
+    "n_tasks": 13,
+    "avg_original_score": 0.887,
+    "avg_final_score": 0.896,
+    "pass_rate": 0.923,
+    "corrections_made": 2,
+    "evolved_rules": 1,
+    "category_scores": {
+      "npc_behavior": 0.863,
+      "game_mechanics": 0.927,
+      "ui": 0.86,
+      "physics_cframe": 0.917,
+      "data_persistence": 0.92,
+      "remote_events": 0.881
+    },
+    "timestamp": "2026-03-01T11:57:31.635338+00:00"
+  }
+]

@@ -1,0 +1,497 @@
+{% extends "copilot/base.html" %}
+{% load copilot_extras %}
+
+{% block title %}Generate - Luau Copilot{% endblock %}
+{% block nav_generate %}active{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">Code Generator</h1>
+        <p class="text-gray-400">Describe what you want to build and choose a model. The generated code is automatically scored.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column: Input -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Task Input -->
+            <div class="rounded-xl bg-surface-800 border border-surface-600/50 p-6">
+                <label class="block text-sm font-semibold text-gray-200 mb-3">Task Description</label>
+                <textarea
+                    id="task-input"
+                    rows="6"
+                    class="w-full bg-surface-700 border border-surface-500 rounded-lg px-4 py-3 text-gray-100 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-luau-blue/50 focus:border-luau-blue resize-none"
+                    placeholder="Create a coin collection system. Spawn 20 coins randomly across the map. When a player touches a coin, award 1 point to their leaderstats and destroy the coin."
+                ></textarea>
+
+                <!-- Quick Examples -->
+                <div class="mt-3">
+                    <span class="text-xs text-gray-500 block mb-2">Quick examples:</span>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button onclick="setTask('Create a coin collection system with leaderstats scoring and respawning coins')" class="text-xs px-2.5 py-1 rounded-md bg-surface-600/50 text-gray-400 hover:text-gray-200 hover:bg-surface-600 transition-colors">Coin System</button>
+                        <button onclick="setTask('Create an NPC that patrols between 4 waypoints using PathfindingService with path recomputing')" class="text-xs px-2.5 py-1 rounded-md bg-surface-600/50 text-gray-400 hover:text-gray-200 hover:bg-surface-600 transition-colors">NPC Patrol</button>
+                        <button onclick="setTask('Create a player data save system using DataStoreService with pcall error handling and BindToClose')" class="text-xs px-2.5 py-1 rounded-md bg-surface-600/50 text-gray-400 hover:text-gray-200 hover:bg-surface-600 transition-colors">Data Save</button>
+                        <button onclick="setTask('Create an animated health bar UI that smoothly tweens when the player takes damage with color changes')" class="text-xs px-2.5 py-1 rounded-md bg-surface-600/50 text-gray-400 hover:text-gray-200 hover:bg-surface-600 transition-colors">Health Bar</button>
+                        <button onclick="setTask('Create a door that smoothly opens when a player steps on a pressure plate using TweenService CFrame animation')" class="text-xs px-2.5 py-1 rounded-md bg-surface-600/50 text-gray-400 hover:text-gray-200 hover:bg-surface-600 transition-colors">Door System</button>
+                        <button onclick="setTask('Implement a round-based game system with lobby, arena teleport, kill tracking and leaderboard')" class="text-xs px-2.5 py-1 rounded-md bg-surface-600/50 text-gray-400 hover:text-gray-200 hover:bg-surface-600 transition-colors">Round System</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Model Selector -->
+            <div class="rounded-xl bg-surface-800 border border-surface-600/50 p-6">
+                <label class="block text-sm font-semibold text-gray-200 mb-3">Model</label>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-3 p-3 rounded-lg bg-surface-700/50 border border-surface-600/30 cursor-pointer hover:bg-surface-700 transition-colors group">
+                        <input type="radio" name="model" value="base" checked class="text-luau-blue focus:ring-luau-blue bg-surface-600 border-surface-500">
+                        <div>
+                            <span class="text-sm font-medium text-gray-200 group-hover:text-white">Base Mistral</span>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 rounded-lg bg-surface-700/50 border border-surface-600/30 cursor-pointer hover:bg-surface-700 transition-colors group">
+                        <input type="radio" name="model" value="sft" class="text-luau-purple focus:ring-luau-purple bg-surface-600 border-surface-500">
+                        <div>
+                            <span class="text-sm font-medium text-gray-200 group-hover:text-white">SFT Model</span>
+                            <span class="block text-xs text-gray-500">Supervised fine-tuned</span>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 rounded-lg bg-surface-700/50 border border-surface-600/30 cursor-pointer hover:bg-surface-700 transition-colors group">
+                        <input type="radio" name="model" value="rft" class="text-luau-green focus:ring-luau-green bg-surface-600 border-surface-500">
+                        <div>
+                            <span class="text-sm font-medium text-gray-200 group-hover:text-white">RFT Model</span>
+                            <span class="block text-xs text-gray-500">Reinforcement fine-tuned</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Generate Button -->
+            <button
+                id="generate-btn"
+                onclick="generateCode()"
+                class="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-luau-blue to-luau-purple text-white font-semibold shadow-lg shadow-luau-blue/25 hover:shadow-luau-blue/40 transition-all hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+                <svg id="generate-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <div id="generate-spinner" class="spinner hidden"></div>
+                <span id="generate-text">Generate Code</span>
+            </button>
+
+            <!-- Score Dashboard -->
+            <div id="score-panel" class="rounded-xl bg-surface-800 border border-surface-600/50 p-6 hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-semibold text-gray-200">Score Dashboard</h3>
+                    <span id="avg-score" class="text-lg font-bold font-mono"></span>
+                </div>
+                <div class="space-y-3">
+                    <!-- Syntax -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-400">Syntax</span>
+                            <span id="score-syntax-val" class="text-xs font-mono font-bold text-gray-300"></span>
+                        </div>
+                        <div class="w-full bg-surface-600 rounded-full h-2">
+                            <div id="score-syntax-bar" class="score-bar h-2 rounded-full bg-luau-blue" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <!-- API -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-400">API Correctness</span>
+                            <span id="score-api-val" class="text-xs font-mono font-bold text-gray-300"></span>
+                        </div>
+                        <div class="w-full bg-surface-600 rounded-full h-2">
+                            <div id="score-api-bar" class="score-bar h-2 rounded-full bg-luau-purple" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <!-- Bugs -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-400">Bug Detection</span>
+                            <span id="score-bugs-val" class="text-xs font-mono font-bold text-gray-300"></span>
+                        </div>
+                        <div class="w-full bg-surface-600 rounded-full h-2">
+                            <div id="score-bugs-bar" class="score-bar h-2 rounded-full bg-luau-orange" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <!-- Quality -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-400">Code Quality</span>
+                            <span id="score-quality-val" class="text-xs font-mono font-bold text-gray-300"></span>
+                        </div>
+                        <div class="w-full bg-surface-600 rounded-full h-2">
+                            <div id="score-quality-bar" class="score-bar h-2 rounded-full bg-luau-green" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Issues -->
+                <div id="issues-panel" class="mt-4 hidden">
+                    <div class="text-xs font-semibold text-gray-400 mb-2">Issues Found:</div>
+                    <ul id="issues-list" class="space-y-1 text-xs text-gray-500"></ul>
+                </div>
+
+                <!-- Self-Correct Button -->
+                <button
+                    id="self-correct-btn"
+                    onclick="selfCorrect()"
+                    class="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-luau-green/30 text-luau-green text-sm font-semibold hover:bg-luau-green/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <svg id="correct-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <div id="correct-spinner" class="spinner hidden" style="border-top-color: #10b981; border-color: rgba(16,185,129,0.2);"></div>
+                    <span id="correct-text">Self-Correct</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Column: Output -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Code Output -->
+            <div class="rounded-xl bg-surface-800 border border-surface-600/50 overflow-hidden">
+                <!-- Header -->
+                <div class="flex items-center justify-between px-6 py-3 border-b border-surface-600/50 bg-surface-700/30">
+                    <div class="flex items-center gap-3">
+                        <div class="flex gap-1.5">
+                            <div class="w-3 h-3 rounded-full bg-roblox-red/60"></div>
+                            <div class="w-3 h-3 rounded-full bg-luau-orange/60"></div>
+                            <div class="w-3 h-3 rounded-full bg-luau-green/60"></div>
+                        </div>
+                        <span id="output-label" class="text-xs text-gray-400 font-mono">output.luau</span>
+                    </div>
+                    <button onclick="copyCode()" id="copy-btn" class="hidden text-xs text-gray-400 hover:text-gray-200 transition-colors flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Copy
+                    </button>
+                </div>
+                <!-- Code Area -->
+                <div id="code-output" class="code-output p-6 font-mono text-sm overflow-auto" style="min-height: 400px; max-height: 70vh;">
+                    <div id="empty-state" class="flex flex-col items-center justify-center h-80 text-gray-500">
+                        <svg class="w-16 h-16 mb-4 text-surface-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                        </svg>
+                        <p class="text-sm">Your generated code will appear here</p>
+                        <p class="text-xs text-gray-600 mt-1">Describe a Roblox task and click Generate</p>
+                    </div>
+                    <pre id="code-pre" class="hidden"><code id="code-block" class="language-lua"></code></pre>
+                </div>
+            </div>
+
+            <!-- Self-Correction Results (before/after) -->
+            <div id="correction-panel" class="hidden">
+                <div class="rounded-xl bg-surface-800 border border-luau-green/30 overflow-hidden">
+                    <div class="px-6 py-3 border-b border-surface-600/50 bg-luau-green/5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-luau-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <h3 class="text-sm font-semibold text-white">Self-Correction Results</h3>
+                            </div>
+                            <span id="correction-summary" class="text-xs font-mono text-gray-400"></span>
+                        </div>
+                    </div>
+
+                    <!-- Score Comparison -->
+                    <div class="p-6">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div class="text-center p-3 rounded-lg bg-surface-700/30">
+                                <div class="text-xs text-gray-500 mb-1">Syntax</div>
+                                <div class="flex items-center justify-center gap-1">
+                                    <span id="before-syntax" class="text-sm font-mono text-gray-400"></span>
+                                    <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                    <span id="after-syntax" class="text-sm font-mono font-bold text-luau-blue"></span>
+                                </div>
+                            </div>
+                            <div class="text-center p-3 rounded-lg bg-surface-700/30">
+                                <div class="text-xs text-gray-500 mb-1">API</div>
+                                <div class="flex items-center justify-center gap-1">
+                                    <span id="before-api" class="text-sm font-mono text-gray-400"></span>
+                                    <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                    <span id="after-api" class="text-sm font-mono font-bold text-luau-purple"></span>
+                                </div>
+                            </div>
+                            <div class="text-center p-3 rounded-lg bg-surface-700/30">
+                                <div class="text-xs text-gray-500 mb-1">Bugs</div>
+                                <div class="flex items-center justify-center gap-1">
+                                    <span id="before-bugs" class="text-sm font-mono text-gray-400"></span>
+                                    <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                    <span id="after-bugs" class="text-sm font-mono font-bold text-luau-orange"></span>
+                                </div>
+                            </div>
+                            <div class="text-center p-3 rounded-lg bg-surface-700/30">
+                                <div class="text-xs text-gray-500 mb-1">Quality</div>
+                                <div class="flex items-center justify-center gap-1">
+                                    <span id="before-quality" class="text-sm font-mono text-gray-400"></span>
+                                    <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                    <span id="after-quality" class="text-sm font-mono font-bold text-luau-green"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Corrected Code -->
+                        <div class="rounded-lg bg-surface-700/30 overflow-hidden">
+                            <div class="px-4 py-2 border-b border-surface-600/30 flex items-center justify-between">
+                                <span class="text-xs text-gray-400 font-mono">corrected.luau</span>
+                                <button onclick="useCorrectedCode()" class="text-xs text-luau-green hover:text-luau-green/80 font-medium transition-colors">Use This Code</button>
+                            </div>
+                            <div class="p-4 code-output font-mono text-sm overflow-auto" style="max-height: 400px;">
+                                <pre><code id="corrected-code-block" class="language-lua"></code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Toast -->
+<div id="error-toast" class="fixed bottom-6 right-6 max-w-md bg-roblox-red/90 text-white px-6 py-4 rounded-xl shadow-2xl hidden z-50 animate-slide-up">
+    <div class="flex items-start gap-3">
+        <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+        <div>
+            <p class="text-sm font-semibold">Error</p>
+            <p id="error-message" class="text-xs mt-1 opacity-90"></p>
+        </div>
+        <button onclick="hideError()" class="ml-2 text-white/60 hover:text-white">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // State
+    let currentCode = '';
+    let currentTask = '';
+    let correctedCode = '';
+
+    function setTask(text) {
+        document.getElementById('task-input').value = text;
+    }
+
+    function getSelectedModel() {
+        return document.querySelector('input[name="model"]:checked').value;
+    }
+
+    function showError(msg) {
+        document.getElementById('error-message').textContent = msg;
+        const toast = document.getElementById('error-toast');
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 6000);
+    }
+
+    function hideError() {
+        document.getElementById('error-toast').classList.add('hidden');
+    }
+
+    function setLoading(btn, isLoading) {
+        const icon = document.getElementById(btn + '-icon');
+        const spinner = document.getElementById(btn + '-spinner');
+        const text = document.getElementById(btn + '-text');
+        const button = document.getElementById(btn + '-btn');
+
+        if (isLoading) {
+            if (icon) icon.classList.add('hidden');
+            spinner.classList.remove('hidden');
+            button.disabled = true;
+            if (btn === 'generate') text.textContent = 'Generating...';
+            if (btn === 'correct') text.textContent = 'Correcting...';
+        } else {
+            if (icon) icon.classList.remove('hidden');
+            spinner.classList.add('hidden');
+            button.disabled = false;
+            if (btn === 'generate') text.textContent = 'Generate Code';
+            if (btn === 'correct') text.textContent = 'Self-Correct';
+        }
+    }
+
+    function updateScores(scores, avgScore, issues) {
+        const panel = document.getElementById('score-panel');
+        panel.classList.remove('hidden');
+
+        // Avg score
+        const avgEl = document.getElementById('avg-score');
+        const avgPct = (avgScore * 100).toFixed(0);
+        avgEl.textContent = avgPct + '%';
+        avgEl.className = 'text-lg font-bold font-mono ' +
+            (avgScore >= 0.85 ? 'text-luau-green' : avgScore >= 0.7 ? 'text-luau-orange' : 'text-roblox-red');
+
+        // Individual scores
+        const dims = ['syntax', 'api', 'bugs', 'quality'];
+        dims.forEach(dim => {
+            const val = scores[dim] || 0;
+            const pct = (val * 100).toFixed(0);
+            document.getElementById('score-' + dim + '-val').textContent = pct + '%';
+            setTimeout(() => {
+                document.getElementById('score-' + dim + '-bar').style.width = pct + '%';
+            }, 100);
+        });
+
+        // Issues
+        const issuesPanel = document.getElementById('issues-panel');
+        const issuesList = document.getElementById('issues-list');
+        if (issues && issues.length > 0) {
+            issuesPanel.classList.remove('hidden');
+            issuesList.innerHTML = issues.map(issue =>
+                '<li class="flex items-start gap-1.5"><span class="text-roblox-red mt-0.5">&#x2022;</span><span>' + escapeHtml(issue) + '</span></li>'
+            ).join('');
+        } else {
+            issuesPanel.classList.add('hidden');
+        }
+    }
+
+    function displayCode(code, elementId) {
+        const el = document.getElementById(elementId || 'code-block');
+        el.textContent = code;
+        hljs.highlightElement(el);
+
+        if (elementId === 'code-block' || !elementId) {
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('code-pre').classList.remove('hidden');
+            document.getElementById('copy-btn').classList.remove('hidden');
+        }
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(text));
+        return div.innerHTML;
+    }
+
+    async function generateCode() {
+        const task = document.getElementById('task-input').value.trim();
+        if (!task) {
+            showError('Please enter a task description.');
+            return;
+        }
+
+        currentTask = task;
+        const model = getSelectedModel();
+
+        setLoading('generate', true);
+        document.getElementById('correction-panel').classList.add('hidden');
+
+        // Reset score bars
+        ['syntax', 'api', 'bugs', 'quality'].forEach(dim => {
+            document.getElementById('score-' + dim + '-bar').style.width = '0%';
+        });
+
+        try {
+            const resp = await fetch('/copilot/api/generate/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task, model }),
+            });
+
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                showError(data.error || 'Generation failed.');
+                return;
+            }
+
+            currentCode = data.code;
+            displayCode(data.code);
+            updateScores(data.scores, data.avg_score, data.issues);
+            document.getElementById('output-label').textContent = model + '_output.luau';
+
+            // Auto self-correct if score is below threshold
+            if (data.avg_score < 0.85 && data.issues && data.issues.length > 0) {
+                setLoading('generate', false);
+                selfCorrect();
+                return;
+            }
+
+        } catch (err) {
+            showError('Network error: ' + err.message);
+        } finally {
+            setLoading('generate', false);
+        }
+    }
+
+    async function selfCorrect() {
+        if (!currentCode || !currentTask) {
+            showError('Generate code first before self-correcting.');
+            return;
+        }
+
+        setLoading('correct', true);
+
+        try {
+            const resp = await fetch('/copilot/api/self-correct/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task: currentTask, code: currentCode }),
+            });
+
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                showError(data.error || 'Self-correction failed.');
+                return;
+            }
+
+            correctedCode = data.final_code;
+
+            // Show correction panel
+            const panel = document.getElementById('correction-panel');
+            panel.classList.remove('hidden');
+
+            // Summary
+            const improved = data.improved ? 'Improved' : 'No improvement';
+            const rounds = data.rounds;
+            document.getElementById('correction-summary').textContent =
+                `${rounds} round(s) | ${(data.original_avg * 100).toFixed(0)}% -> ${(data.final_avg * 100).toFixed(0)}% | ${improved}`;
+
+            // Before/after scores
+            const dims = ['syntax', 'api', 'bugs', 'quality'];
+            dims.forEach(dim => {
+                const before = data.original_scores[dim] || 0;
+                const after = data.final_scores[dim] || 0;
+                document.getElementById('before-' + dim).textContent = (before * 100).toFixed(0) + '%';
+                document.getElementById('after-' + dim).textContent = (after * 100).toFixed(0) + '%';
+            });
+
+            // Corrected code
+            displayCode(data.final_code, 'corrected-code-block');
+
+            // Update main scores
+            updateScores(data.final_scores, data.final_avg, []);
+
+        } catch (err) {
+            showError('Network error: ' + err.message);
+        } finally {
+            setLoading('correct', false);
+        }
+    }
+
+    function useCorrectedCode() {
+        if (correctedCode) {
+            currentCode = correctedCode;
+            displayCode(correctedCode);
+        }
+    }
+
+    function copyCode() {
+        const code = currentCode || '';
+        navigator.clipboard.writeText(code).then(() => {
+            const btn = document.getElementById('copy-btn');
+            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Copied!';
+            setTimeout(() => {
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> Copy';
+            }, 2000);
+        });
+    }
+</script>
+{% endblock %}
