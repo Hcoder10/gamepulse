@@ -217,6 +217,24 @@
                         </div>
                     </div>
                 </div>
+                <!-- AI Overview Verdict -->
+                <div id="overview-verdict" class="mb-6 bg-gradient-to-r from-pulse-500/10 via-transparent to-blue-500/10 rounded-2xl border border-pulse-500/20 p-5 anim-slide hidden">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-8 h-8 bg-pulse-500/20 rounded-lg flex items-center justify-center">
+                            <svg class="w-4 h-4 text-pulse-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-pulse-400 uppercase tracking-wider">AI Portfolio Analysis</span>
+                            <span class="text-[10px] text-gray-500 ml-2">Powered by Mistral</span>
+                        </div>
+                        <div class="ml-auto flex items-center gap-2">
+                            <div class="w-10 h-10 rounded-full border-2 border-pulse-500 flex items-center justify-center">
+                                <span id="overview-health-pct" class="text-sm font-black text-pulse-400"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <p id="overview-verdict-text" class="text-sm font-semibold text-white"></p>
+                </div>
                 <!-- Stats -->
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="stats-row"></div>
                 <!-- Games -->
@@ -427,12 +445,13 @@ async function sendChat(){
 }
 
 // ============ INIT: AUTO-LOAD ============
+let aiOverview=null;
 (async function init(){
     const cached=cacheGet('portfolio');
-    if(cached&&cached.games&&cached.games.length){games=cached.games;renderPortfolio();loadBriefing();return}
+    if(cached&&cached.games&&cached.games.length){games=cached.games;aiOverview=cached.overview||null;renderPortfolio();loadBriefing();return}
     try{
         const r=await fetch('/api/portfolio/');const d=await r.json();
-        if(d.games&&d.games.length){games=d.games;cacheSet('portfolio',d);renderPortfolio();loadBriefing()}
+        if(d.games&&d.games.length){games=d.games;aiOverview=d.overview||null;cacheSet('portfolio',d);renderPortfolio();loadBriefing()}
         else{document.getElementById('overview-loading').innerHTML='<div class="text-center py-16"><p class="text-sm text-gray-500 mb-4">No games found.</p><a href="/setup/" class="px-5 py-2.5 bg-pulse-500 text-white rounded-xl text-sm font-semibold">Go to Setup</a></div>'}
     }catch(e){document.getElementById('overview-loading').innerHTML='<p class="text-red-500 text-sm py-16 text-center">Failed: '+e.message+'</p>'}
 })();
@@ -446,9 +465,17 @@ function renderPortfolio(){
     document.getElementById('portfolio-content').classList.remove('hidden');
     document.getElementById('game-count').textContent=games.length+' game(s)';
     const tp=games.reduce((s,g)=>s+(g.playing||0),0),tv=games.reduce((s,g)=>s+(g.visits||0),0),tf=games.reduce((s,g)=>s+(g.favorites||0),0);
+    const ov=aiOverview||{};
+    const aiHints=[ov.players_insight||'',ov.visits_insight||'',ov.favorites_insight||'',ov.portfolio_insight||''];
     document.getElementById('stats-row').innerHTML=[
         {l:'Active Players',v:fmt(tp),c:'pulse'},{l:'Total Visits',v:fmt(tv),c:'blue'},{l:'Favorites',v:fmt(tf),c:'amber'},{l:'Games',v:games.length+'',c:'violet'},
-    ].map((s,i)=>`<div class="bg-white dark:bg-surface-700 rounded-xl border border-gray-200 dark:border-surface-600 p-5 shadow-sm anim-slide anim-slide-d${i}"><span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-2">${s.l}</span><p class="text-2xl font-bold">${s.v}</p></div>`).join('');
+    ].map((s,i)=>`<div class="bg-white dark:bg-surface-700 rounded-xl border border-gray-200 dark:border-surface-600 p-5 shadow-sm anim-slide anim-slide-d${i}"><span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-2">${s.l}</span><p class="text-2xl font-bold">${s.v}</p>${aiHints[i]?`<p class="text-[11px] text-${s.c}-500 dark:text-${s.c}-400 mt-2 leading-snug"><svg class="w-3 h-3 inline-block mr-1 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>${esc(aiHints[i])}</p>`:''}</div>`).join('');
+    // AI verdict banner
+    if(ov.overall_verdict){
+        const vd=document.getElementById('overview-verdict');vd.classList.remove('hidden');
+        document.getElementById('overview-verdict-text').textContent=ov.overall_verdict;
+        document.getElementById('overview-health-pct').textContent=(ov.health_pct||'—');
+    }
     document.getElementById('game-cards').innerHTML=games.map((g,i)=>`
         <div class="bg-white dark:bg-surface-700 rounded-xl border border-gray-200 dark:border-surface-600 p-5 shadow-sm insight-card cursor-pointer anim-slide" style="animation-delay:${i*.05}s" onclick="selectGame(${g.universe_id})">
             <div class="flex items-start gap-3 mb-3">${g.thumbnail?`<img src="${g.thumbnail}" class="w-12 h-12 rounded-lg object-cover flex-shrink-0">`:`<div class="w-12 h-12 rounded-lg bg-gray-100 dark:bg-surface-600 flex items-center justify-center flex-shrink-0"><svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>`}<div class="min-w-0"><h4 class="font-bold text-sm truncate">${esc(g.name)}</h4><p class="text-[11px] text-gray-400">${esc(g.creator_name||'Unknown')}</p></div></div>

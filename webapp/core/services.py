@@ -436,6 +436,57 @@ def generate_portfolio_briefing(games: list[dict]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# AI Feature: Portfolio Overview (AI-enhanced stats)
+# ---------------------------------------------------------------------------
+
+OVERVIEW_SYSTEM_PROMPT = CHAMPION_PROMPT + """
+
+You are generating a quick AI-powered overview of a Roblox game developer's portfolio stats. Be concise and punchy — each insight should be 1 short sentence. Use the diagnostic framework to contextualize raw numbers.
+
+Return valid JSON:
+{
+  "players_insight": "One-sentence AI context about their active player count (e.g., 'Strong concurrent base — top 20% for your genre mix')",
+  "visits_insight": "One-sentence AI context about total visits (e.g., '2.1B visits signals evergreen appeal — monetize the long tail')",
+  "favorites_insight": "One-sentence AI context about favorites (e.g., 'High fav-to-visit ratio means strong first impressions')",
+  "portfolio_insight": "One-sentence AI context about portfolio size/diversity (e.g., '3 games across 2 genres — good diversification')",
+  "overall_verdict": "One bold sentence summarizing the portfolio (e.g., 'Healthy portfolio with untapped monetization potential')",
+  "health_pct": 78
+}"""
+
+
+@weave.op()
+def generate_portfolio_overview(games: list[dict]) -> dict:
+    """Generate AI-enhanced overview stats for the portfolio."""
+    total_playing = sum(g.get("playing", 0) for g in games)
+    total_visits = sum(g.get("visits", 0) for g in games)
+    total_favs = sum(g.get("favorites", 0) for g in games)
+    genres = list(set(g.get("genre", "Unknown") for g in games))
+
+    games_text = "\n".join(
+        f"- {g['name']}: {g.get('playing', 0):,} playing, {g.get('visits', 0):,} visits, {g.get('favorites', 0):,} favs, genre={g.get('genre', 'Unknown')}"
+        for g in games
+    )
+
+    raw = mistral_analyze(
+        OVERVIEW_SYSTEM_PROMPT,
+        f"Portfolio stats:\n- Total active players: {total_playing:,}\n- Total visits: {total_visits:,}\n- Total favorites: {total_favs:,}\n- Number of games: {len(games)}\n- Genres: {', '.join(genres)}\n\nIndividual games:\n{games_text}\n\nGive me AI-powered context for each stat.",
+    )
+
+    result = _parse_ai_json(raw)
+    if result:
+        return result
+
+    return {
+        "players_insight": "Active player base across your games.",
+        "visits_insight": "Total lifetime visits across your portfolio.",
+        "favorites_insight": "Combined favorites from all games.",
+        "portfolio_insight": f"{len(games)} games in your portfolio.",
+        "overall_verdict": "Portfolio is active — dive into individual games for deeper analysis.",
+        "health_pct": 70,
+    }
+
+
+# ---------------------------------------------------------------------------
 # AI Feature: Competitor Analysis
 # ---------------------------------------------------------------------------
 

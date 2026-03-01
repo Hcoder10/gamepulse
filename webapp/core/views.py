@@ -93,7 +93,7 @@ def api_game_lookup(request):
 
 @csrf_exempt
 def api_portfolio(request):
-    """Return portfolio data for session games or demo games."""
+    """Return portfolio data for session games or demo games, with AI overview."""
     game_ids = request.session.get("game_ids", [])
     if not game_ids:
         game_ids = [g["universe_id"] for g in services.DEMO_GAMES]
@@ -104,7 +104,10 @@ def api_portfolio(request):
     for g in games:
         g["thumbnail"] = services.fetch_game_thumbnail(g["universe_id"])
 
-    return JsonResponse({"games": games})
+    # AI-enhanced overview
+    overview = services.generate_portfolio_overview(games)
+
+    return JsonResponse({"games": games, "overview": overview})
 
 
 @csrf_exempt
