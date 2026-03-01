@@ -18,11 +18,6 @@ from copilot import services
 # Page views
 # ---------------------------------------------------------------------------
 
-def landing(request):
-    """Landing page — agent-focused with plugin download."""
-    return render(request, "copilot/landing.html")
-
-
 def generate_page(request):
     """Interactive code generation page."""
     test_tasks = services.get_test_tasks()
@@ -30,20 +25,6 @@ def generate_page(request):
     return render(request, "copilot/generate.html", {
         "example_tasks": example_tasks,
         "test_tasks": test_tasks,
-    })
-
-
-def compare_page(request):
-    """Side-by-side model comparison page."""
-    comparison_data = services.load_comparison_data()
-    test_tasks = services.get_test_tasks()
-    iteration_log = services.load_iteration_log()
-    forge_log = services.load_forge_log()
-    return render(request, "copilot/compare.html", {
-        "comparison_data": json.dumps(comparison_data),
-        "test_tasks": test_tasks,
-        "iteration_log": json.dumps(iteration_log),
-        "forge_log": json.dumps(forge_log),
     })
 
 
@@ -92,13 +73,13 @@ def api_generate(request):
     try:
         body = json.loads(request.body)
         task = body.get("task", "").strip()
-        model = body.get("model", "base").strip()
+        model = body.get("model", "rft").strip()
 
         if not task:
             return JsonResponse({"error": "Task description is required."}, status=400)
 
-        if model not in ("base", "sft", "rft"):
-            return JsonResponse({"error": "Invalid model choice."}, status=400)
+        if model not in ("sft", "rft"):
+            return JsonResponse({"error": "Invalid model choice. Use 'sft' or 'rft'."}, status=400)
 
         code = services.generate_code(task, model)
         scores = services.score_code(code)

@@ -7,7 +7,6 @@ urlpatterns = [
     # Pages
     path("", views.chat_page, name="chat"),
     path("generate/", views.generate_page, name="generate"),
-    path("compare/", views.compare_page, name="compare"),
     path("about/", views.about_page, name="about"),
     path("pipeline/", views.pipeline_page, name="pipeline"),
     path("plugin/", views.plugin_page, name="plugin"),

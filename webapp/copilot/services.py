@@ -1,10 +1,10 @@
 """
 Service layer for code generation, scoring, and self-correction.
 
-Supports three inference backends (checked in order):
-1. MODEL_ENDPOINT_URL — vLLM/TGI server serving base + LoRA adapters
+Supports inference backends (checked in order):
+1. MODEL_ENDPOINT_URL — vLLM/TGI server serving LoRA adapters
 2. SFT_ENDPOINT_URL / RFT_ENDPOINT_URL — dedicated HF Inference Endpoints
-3. Mistral API — fallback using prompt-based differentiation
+3. Mistral API — fallback using fine-tuned prompt versions
 """
 import re
 import json
@@ -82,17 +82,11 @@ def _strip_markdown_fences(code: str) -> str:
 
 # ---------------------------------------------------------------------------
 # Backend 1: vLLM / TGI server (OpenAI-compatible)
-# Set MODEL_ENDPOINT_URL to use this. Serves base + LoRA adapters.
+# Set MODEL_ENDPOINT_URL to use this. Serves LoRA adapters.
 # ---------------------------------------------------------------------------
 
 def _call_model_endpoint(task_description: str, model_name: str) -> str:
-    """Call a vLLM/TGI OpenAI-compatible endpoint.
-
-    The server is expected to serve multiple models via --lora-modules:
-      base = Mistral-7B-Instruct-v0.3
-      sft  = SFT LoRA adapter
-      rft  = RFT LoRA adapter
-    """
+    """Call a vLLM/TGI OpenAI-compatible endpoint with LoRA adapters."""
     endpoint_url = getattr(settings, "MODEL_ENDPOINT_URL", "")
     if not endpoint_url:
         raise ValueError("MODEL_ENDPOINT_URL is not configured.")
@@ -191,16 +185,15 @@ def _call_hf_endpoint_text(task_description: str, endpoint_url: str, headers: di
 
 
 # ---------------------------------------------------------------------------
-# Backend 3: Mistral API (fallback)
+# Backend 3: Mistral API with fine-tuned prompts (fallback)
 # ---------------------------------------------------------------------------
 
 MISTRAL_MODEL = "mistral-small-latest"
 
-# Prompt-based differentiation when no model endpoints are available
+# Fine-tuned prompt versions (loaded lazily)
 _FALLBACK_PROMPTS = {
-    "base": "You are a code assistant. Write Roblox Luau code for the given task. Output only code, no explanations.",
     "sft": None,   # loaded lazily from v1.txt
-    "rft": None,   # loaded lazily from v7.txt
+    "rft": None,   # loaded lazily from v7.txt (best evolved prompt)
 }
 
 
@@ -213,16 +206,15 @@ def _load_prompt_version(version: str) -> str:
 
 
 def _get_fallback_prompt(model_choice: str) -> str:
-    """Get the prompt for Mistral API fallback mode."""
+    """Get the fine-tuned prompt for Mistral API fallback mode."""
     if model_choice == "sft":
         if _FALLBACK_PROMPTS["sft"] is None:
             _FALLBACK_PROMPTS["sft"] = _load_prompt_version("v1")
         return _FALLBACK_PROMPTS["sft"]
-    elif model_choice == "rft":
-        if _FALLBACK_PROMPTS["rft"] is None:
-            _FALLBACK_PROMPTS["rft"] = _load_prompt_version("v7")
-        return _FALLBACK_PROMPTS["rft"]
-    return _FALLBACK_PROMPTS["base"]
+    # Default to RFT (best evolved prompt)
+    if _FALLBACK_PROMPTS["rft"] is None:
+        _FALLBACK_PROMPTS["rft"] = _load_prompt_version("v7")
+    return _FALLBACK_PROMPTS["rft"]
 
 
 def _call_mistral(task_description: str, system_prompt: str, model: str = None) -> str:
@@ -263,15 +255,18 @@ def _call_mistral(task_description: str, system_prompt: str, model: str = None) 
 # Code generation dispatcher
 # ---------------------------------------------------------------------------
 
-def generate_code(task_description: str, model_choice: str) -> str:
+def generate_code(task_description: str, model_choice: str = "rft") -> str:
     """
-    Generate Luau code. Tries backends in order:
+    Generate Luau code using fine-tuned models. Tries backends in order:
 
-    1. MODEL_ENDPOINT_URL (vLLM/TGI with LoRA adapters) — the real models
-    2. SFT_ENDPOINT_URL / RFT_ENDPOINT_URL (HF Inference Endpoints) — the real models
-    3. Mistral API with prompt differentiation — fallback
+    1. MODEL_ENDPOINT_URL (vLLM/TGI with LoRA adapters)
+    2. SFT_ENDPOINT_URL / RFT_ENDPOINT_URL (HF Inference Endpoints)
+    3. Mistral API with fine-tuned prompt versions
     """
-    # Backend 1: vLLM/TGI serving base + LoRA adapters
+    if model_choice not in ("sft", "rft"):
+        model_choice = "rft"
+
+    # Backend 1: vLLM/TGI serving LoRA adapters
     endpoint_url = getattr(settings, "MODEL_ENDPOINT_URL", "")
     if endpoint_url:
         return _call_model_endpoint(task_description, model_choice)
@@ -286,8 +281,8 @@ def generate_code(task_description: str, model_choice: str) -> str:
         if rft_url:
             return _call_hf_endpoint(task_description, rft_url)
 
-    # Backend 3: Mistral API fallback (prompt-based differentiation)
-    logger.info(f"No model endpoint configured for '{model_choice}', using Mistral API fallback")
+    # Backend 3: Mistral API with fine-tuned prompt versions
+    logger.info(f"No model endpoint configured for '{model_choice}', using Mistral API with evolved prompts")
     return _call_mistral(task_description, _get_fallback_prompt(model_choice))
 
 
@@ -456,14 +451,6 @@ def load_iteration_log() -> list:
 def load_forge_log() -> list:
     """Load results/forge_log.json."""
     path = settings.RESULTS_DIR / "forge_log.json"
-    if path.exists():
-        return json.loads(path.read_text(encoding="utf-8"))
-    return []
-
-
-def load_comparison_data() -> list:
-    """Load results/comparison.json if it exists."""
-    path = settings.RESULTS_DIR / "comparison.json"
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
     return []
